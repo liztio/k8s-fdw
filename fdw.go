@@ -10,10 +10,10 @@ func init() {
 
 type helloTable struct{ Rows int }
 
-func (t helloTable) Stats(opts Options) TableStats {
+func (t helloTable) Stats(opts *Options) TableStats {
 	return TableStats{Rows: uint(t.Rows), StartCost: 10, TotalCost: 1000}
 }
-func (t helloTable) Scan(rel *Relation, opts Options) Iterator {
+func (t helloTable) Scan(rel *Relation, opts *Options) Iterator {
 	return &helloIter{t: t, rel: rel}
 }
 

@@ -134,18 +134,21 @@ func (e Explainer) Property(k, v string) {
 }
 
 // Options is a set of FDW options provided by user during table creation.
-type Options map[string]string
+type Options struct {
+	TableOptions  map[string]string
+	ServerOptions map[string]string
+}
 
 // Table is a main interface for FDW table.
 //
 // If there are multiple tables created with this module, they can be identified by table options.
 type Table interface {
 	// Stats returns stats for a table.
-	Stats(opts Options) TableStats
+	Stats(opts *Options) TableStats
 	// Scan starts a new scan of the table.
 	// Iterator should not load data instantly, since Scan will be called for EXPLAIN as well.
 	// Results should be fetched during Next calls.
-	Scan(rel *Relation, opts Options) Iterator
+	Scan(rel *Relation, opts *Options) Iterator
 }
 
 // Iterator is an interface for table scanner implementations.
@@ -411,7 +414,7 @@ func goEndForeignScan(node *C.ForeignScanState) {
 
 type State struct {
 	Rel  *Relation
-	Opts map[string]string
+	Opts *Options
 	Iter Iterator
 }
 
@@ -448,13 +451,17 @@ func getState(p unsafe.Pointer) *State {
 	return s
 }
 
-func getFTableOptions(id Oid) Options {
+func getFTableOptions(id Oid) *Options {
 	f := getForeignTable(C.Oid(id))
-	return getOptions(f.options)
+	s := getForeignServer(C.Oid(f.serverid))
+	return &Options{
+		TableOptions:  getOptions(f.options),
+		ServerOptions: getOptions(s.options),
+	}
 }
 
-func getOptions(opts *C.List) Options {
-	m := make(Options)
+func getOptions(opts *C.List) map[string]string {
+	m := make(map[string]string)
 	for it := opts.head; it != nil; it = it.next {
 		el := C.cellGetDef(it)
 		name := C.GoString(el.defname)

@@ -16,6 +16,3 @@ LANGUAGE C STRICT;
 CREATE FOREIGN DATA WRAPPER go_fdw
   HANDLER go_fdw_handler
   VALIDATOR go_fdw_validator;
-
-CREATE SERVER "go-fdw"
-  FOREIGN DATA WRAPPER go_fdw;
