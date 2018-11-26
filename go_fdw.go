@@ -34,6 +34,7 @@ package main
 //typedef AttInMetadata* (*TupleDescGetAttInMetadataFunc) (TupleDesc tupdesc);
 //typedef TupleTableSlot* (*ExecStoreTupleFunc) (HeapTuple tuple, TupleTableSlot *slot, Buffer buffer, bool shouldFree);
 //typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
+//typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
 //typedef char* (*defGetStringFunc) (DefElem *def);
 //
 //typedef struct GoFdwExecutionState
@@ -53,6 +54,7 @@ package main
 //  ExecStoreTupleFunc ExecStoreTuple;
 //
 //  GetForeignTableFunc GetForeignTable;
+//  GetForeignServerFunc GetForeignServer;
 //	defGetStringFunc defGetString;
 //} GoFdwFunctions;
 //
@@ -88,6 +90,10 @@ package main
 //
 //static inline ForeignTable* callGetForeignTable(GoFdwFunctions h, Oid relid){
 //  return (*(h.GetForeignTable))(relid);
+//}
+//
+//static inline ForeignServer* callGetForeignServer(GoFdwFunctions h, Oid relid){
+//  return (*(h.GetForeignServer))(relid);
 //}
 //
 //static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
@@ -229,8 +235,9 @@ var (
 	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
 	execStoreTuple            func(tuple C.HeapTuple, slot *C.TupleTableSlot, buffer C.Buffer, shouldFree C.bool) *C.TupleTableSlot
 
-	getForeignTable func(relid C.Oid) *C.ForeignTable
-	defGetString    func(def *C.DefElem) *C.char
+	getForeignTable  func(relid C.Oid) *C.ForeignTable
+	getForeignServer func(relid C.Oid) *C.ForeignServer
+	defGetString     func(def *C.DefElem) *C.char
 )
 
 //export goMapFuncs
@@ -268,6 +275,9 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	}
 	getForeignTable = func(relid C.Oid) *C.ForeignTable {
 		return C.callGetForeignTable(h, relid)
+	}
+	getForeignServer = func(relid C.Oid) *C.ForeignServer {
+		return C.callGetForeignServer(h, relid)
 	}
 	defGetString = func(def *C.DefElem) *C.char {
 		return C.callDefGetString(h, def)
