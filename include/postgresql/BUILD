@@ -1,14 +1,14 @@
-filegroup(
+cc_library(
     name = "server",
-    srcs = glob([
+    hdrs = glob([
         "server/**/*.h",
     ]),
     visibility = ["//visibility:public"],
 )
 
-filegroup(
+cc_library(
     name = "internal",
-    srcs = glob([
+    hdrs = glob([
         "internal/**/*.h",
     ]),
     visibility = ["//visibility:public"],

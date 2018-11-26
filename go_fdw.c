@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "go_fdw.h"
+#include "_cgo_export.h"
 
 PG_MODULE_MAGIC;
 
