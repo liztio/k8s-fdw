@@ -1,6 +1,6 @@
 package main
 
-//#cgo CFLAGS: -I/usr/include/postgresql/9.6/server -I/usr/include/postgresql/internal
+//#cgo CFLAGS: -I./include/postgresql/server -I./include/postgresql/internal
 //
 //#include "postgres.h"
 //#include "access/htup_details.h"
