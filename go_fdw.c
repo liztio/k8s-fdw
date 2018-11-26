@@ -9,6 +9,7 @@
  */
 
 #include "postgres.h"
+#include "utils/elog.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -36,6 +37,8 @@ static ForeignScan *goGetForeignPlan(PlannerInfo *root,
                                         Plan *outer_plan);
 //static TupleTableSlot *goIterateForeignScan(ForeignScanState *node);
 
+static void goEReport(const char *msg);
+
 Datum
 go_fdw_handler(PG_FUNCTION_ARGS)
 {
@@ -60,7 +63,9 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.ExecStoreTuple = &ExecStoreTuple;
   h.TupleDescGetAttInMetadata = &TupleDescGetAttInMetadata;
   h.GetForeignTable = &GetForeignTable;
+  h.GetForeignServer = &GetForeignServer;
   h.defGetString = &defGetString;
+  h.EReport = &goEReport;
   goMapFuncs(h);
 
   PG_RETURN_POINTER(fdwroutine);
@@ -97,6 +102,9 @@ goGetForeignPlan(PlannerInfo *root,
                           outer_plan);
 }
 
+static void goEReport(const char *msg) {
+  ereport(ERROR, (errcode(ERRCODE_FDW_ERROR), errmsg("%s", msg)));
+}
 
 /*
  * goIterateForeignScan

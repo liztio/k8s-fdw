@@ -36,6 +36,7 @@ package main
 //typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
 //typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
 //typedef char* (*defGetStringFunc) (DefElem *def);
+//typedef void (*EReportFunc) (const char *msg);
 //
 //typedef struct GoFdwExecutionState
 //{
@@ -55,6 +56,7 @@ package main
 //
 //  GetForeignTableFunc GetForeignTable;
 //  GetForeignServerFunc GetForeignServer;
+//  EReportFunc EReport;
 //	defGetStringFunc defGetString;
 //} GoFdwFunctions;
 //
@@ -96,6 +98,9 @@ package main
 //  return (*(h.GetForeignServer))(relid);
 //}
 //
+//static inline void callEReport(GoFdwFunctions h, const char *msg) {
+//  (*(h.EReport))(msg);
+//}
 //static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
 //  return (*(h.defGetString))(def);
 //}
@@ -144,17 +149,17 @@ type Options struct {
 // If there are multiple tables created with this module, they can be identified by table options.
 type Table interface {
 	// Stats returns stats for a table.
-	Stats(opts *Options) TableStats
+	Stats(opts *Options) (TableStats, error)
 	// Scan starts a new scan of the table.
 	// Iterator should not load data instantly, since Scan will be called for EXPLAIN as well.
 	// Results should be fetched during Next calls.
-	Scan(rel *Relation, opts *Options) Iterator
+	Scan(rel *Relation, opts *Options) (Iterator, error)
 }
 
 // Iterator is an interface for table scanner implementations.
 type Iterator interface {
 	// Next returns next row (tuple). Nil slice means there is no more rows to scan.
-	Next() []interface{}
+	Next() ([]interface{}, error)
 	// Reset restarts an iterator from the beginning (possible with a new data snapshot).
 	Reset()
 	// Close stops an iteration and frees any resources.
@@ -241,6 +246,8 @@ var (
 	getForeignTable  func(relid C.Oid) *C.ForeignTable
 	getForeignServer func(relid C.Oid) *C.ForeignServer
 	defGetString     func(def *C.DefElem) *C.char
+
+	ereport func(*C.char)
 )
 
 //export goMapFuncs
@@ -285,6 +292,9 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	defGetString = func(def *C.DefElem) *C.char {
 		return C.callDefGetString(h, def)
 	}
+	ereport = func(msg *C.char) {
+		C.callEReport(h, msg)
+	}
 }
 
 //export goAnalyzeForeignTable
@@ -297,7 +307,11 @@ func goAnalyzeForeignTable(relation C.Relation, fnc *C.AcquireSampleRowsFunc, to
 func goGetForeignRelSize(root *C.PlannerInfo, baserel *C.RelOptInfo, foreigntableid C.Oid) {
 	// Obtain relation size estimates for a foreign table
 	opts := getFTableOptions(Oid(foreigntableid))
-	st := table.Stats(opts)
+	st, err := table.Stats(opts)
+	if err != nil {
+		errReport(err)
+		return
+	}
 	baserel.rows = C.double(st.Rows)
 	baserel.fdw_private = nil
 }
@@ -323,7 +337,11 @@ func goExplainForeignScan(node *C.ForeignScanState, es *C.ExplainState) {
 func goGetForeignPaths(root *C.PlannerInfo, baserel *C.RelOptInfo, foreigntableid C.Oid) {
 	// Create possible access paths for a scan on the foreign table
 	opts := getFTableOptions(Oid(foreigntableid))
-	st := table.Stats(opts)
+	st, err := table.Stats(opts)
+	if err != nil {
+		errReport(err)
+		return
+	}
 	addPath(baserel,
 		(*C.Path)(unsafe.Pointer(createForeignscanPath(
 			root,
@@ -344,9 +362,14 @@ func goGetForeignPaths(root *C.PlannerInfo, baserel *C.RelOptInfo, foreigntablei
 func goBeginForeignScan(node *C.ForeignScanState, eflags C.int) {
 	rel := buildRelation(node.ss.ss_currentRelation)
 	opts := getFTableOptions(rel.ID)
+	iter, err := table.Scan(rel, opts)
+	if err != nil {
+		errReport(err)
+		return
+	}
 	s := &State{
 		Rel: rel, Opts: opts,
-		Iter: table.Scan(rel, opts),
+		Iter: iter,
 	}
 	i := saveState(s)
 
@@ -369,7 +392,11 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 	slot := node.ss.ss_ScanTupleSlot
 	execClearTuple(slot)
 
-	row := s.Iter.Next()
+	row, err := s.Iter.Next()
+	if err != nil {
+		errReport(err)
+		return nil
+	}
 	if row == nil {
 		return slot
 	}
@@ -462,6 +489,9 @@ func getFTableOptions(id Oid) *Options {
 
 func getOptions(opts *C.List) map[string]string {
 	m := make(map[string]string)
+	if opts == nil {
+		return m
+	}
 	for it := opts.head; it != nil; it = it.next {
 		el := C.cellGetDef(it)
 		name := C.GoString(el.defname)
@@ -518,6 +548,10 @@ func buildAttr(attr *C.FormData_pg_attribute) (out Attr) {
 	out.Type = Oid(attr.atttypid)
 	out.NotNull = goBool(attr.attnotnull)
 	return
+}
+
+func errReport(err error) {
+	ereport(C.CString(err.Error()))
 }
 
 // required by buildmode=c-archive

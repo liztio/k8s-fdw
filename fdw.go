@@ -10,11 +10,12 @@ func init() {
 
 type helloTable struct{ Rows int }
 
-func (t helloTable) Stats(opts *Options) TableStats {
-	return TableStats{Rows: uint(t.Rows), StartCost: 10, TotalCost: 1000}
+func (t helloTable) Stats(opts *Options) (TableStats, error) {
+	return TableStats{Rows: uint(t.Rows), StartCost: 10, TotalCost: 1000}, nil
 }
-func (t helloTable) Scan(rel *Relation, opts *Options) Iterator {
-	return &helloIter{t: t, rel: rel}
+func (t helloTable) Scan(rel *Relation, opts *Options) (Iterator, error) {
+	return nil, fmt.Errorf("no such luck")
+	// return &helloIter{t: t, rel: rel}, nil
 }
 
 var _ Explainable = (*helloIter)(nil)
@@ -28,9 +29,9 @@ type helloIter struct {
 func (it *helloIter) Explain(e Explainer) {
 	e.Property("Powered by", "Go FDW")
 }
-func (it *helloIter) Next() []interface{} {
+func (it *helloIter) Next() ([]interface{}, error) {
 	if it.row >= it.t.Rows {
-		return nil
+		return nil, nil
 	}
 	out := make([]interface{}, len(it.rel.Attr.Attrs))
 	for i := range out {
@@ -46,7 +47,7 @@ func (it *helloIter) Next() []interface{} {
 		}
 	}
 	it.row++
-	return out
+	return out, nil
 }
 func (it *helloIter) Reset()       { it.row = 0 }
 func (it *helloIter) Close() error { return nil }
