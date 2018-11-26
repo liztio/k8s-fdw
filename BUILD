@@ -10,7 +10,7 @@ cc_binary(
     name = "libgo_fdw.so",
     deps = [
       ":go_fdw.cc",
-      "//include/postgresql:server",  # keep
+      "//include/postgresql:server",
     ],
     srcs = [
         ":go_fdw.c_hdrs",

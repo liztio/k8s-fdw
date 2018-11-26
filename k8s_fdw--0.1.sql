@@ -1,4 +1,4 @@
-/* go_fdw/go_fdw--1.0.sql */
+/* k8s-fdw/k8s-fdw--0.1.sql */
 
 -- complain if script is sourced in psql, rather than via CREATE EXTENSION
 \echo Use "CREATE EXTENSION go_fdw" to load this extension. \quit

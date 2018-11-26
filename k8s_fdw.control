@@ -1,5 +1,5 @@
 # go_fdw extension
 comment = 'foreign-data wrapper for Kubernetes'
 default_version = '0.1'
-module_pathname = '$libdir/go_fdw'
+module_pathname = '$libdir/k8s_fdw'
 relocatable = true
