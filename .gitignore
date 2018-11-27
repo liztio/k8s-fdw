@@ -31,3 +31,8 @@
 # Auto-generated files
 go_fdw.h
 out/
+/bazel-bin
+/bazel-genfiles
+/bazel-k8s-fdw
+/bazel-out
+/bazel-testlogs
