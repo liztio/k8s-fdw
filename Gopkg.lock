@@ -354,7 +354,7 @@
   revision = "4a9a8137c0a17bc4594f544987b3f0d48b2e3d3a"
 
 [[projects]]
-  digest = "1:8422a9f666270e68bb16e5506e2bb4e86c82ce481eb919733483b1b1381c0193"
+  digest = "1:926a40250d193d9ff81a79d61223b8a166f636be5a573886e650f69ba789c061"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -368,6 +368,7 @@
     "rest",
     "rest/watch",
     "restmapper",
+    "third_party/forked/golang/template",
     "tools/auth",
     "tools/clientcmd",
     "tools/clientcmd/api",
@@ -380,6 +381,7 @@
     "util/flowcontrol",
     "util/homedir",
     "util/integer",
+    "util/jsonpath",
   ]
   pruneopts = "UT"
   revision = "1638f8970cefaa404ff3a62950f88b08292b2696"
@@ -408,12 +410,16 @@
     "github.com/pkg/errors",
     "github.com/stretchr/testify/assert",
     "k8s.io/apimachinery/pkg/api/meta",
+    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
+    "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/dynamic",
+    "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/restmapper",
     "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/util/jsonpath",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
