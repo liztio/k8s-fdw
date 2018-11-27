@@ -1,8 +1,10 @@
 package main
 
-// TODO: This file should be replaced by your actual implementation. Call SetTable in init to start serving queries.
+import (
+	"fmt"
+)
 
-import "fmt"
+// TODO: This file should be replaced by your actual implementation. Call SetTable in init to start serving queries.
 
 func init() {
 	SetTable(helloTable{Rows: 10})

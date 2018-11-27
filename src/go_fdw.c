@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "go_fdw.h"
+#include "lib/fdw/go_fdw.h"
 
 PG_MODULE_MAGIC;
 
