@@ -2,7 +2,9 @@ load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_docker//container:image.bzl", "container_image")
 
 # gazelle:prefix github.com/liztio/k8s-fdw
-gazelle(name = "gazelle")
+gazelle(
+    name = "gazelle",
+)
 
 container_image(
     name = "k8s_fdw_image",

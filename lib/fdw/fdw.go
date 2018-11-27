@@ -1,55 +1,68 @@
 package main
 
 import (
-	"fmt"
+	"sync"
+
+	"github.com/liztio/k8s-fdw/pkg/client"
+	"github.com/pkg/errors"
 )
 
 // TODO: This file should be replaced by your actual implementation. Call SetTable in init to start serving queries.
 
 func init() {
-	SetTable(helloTable{Rows: 10})
+	SetTable(&k8sTable{})
 }
 
-type helloTable struct{ Rows int }
+type k8sTable struct {
+	k8sClient *client.Client
+}
 
-func (t helloTable) Stats(opts *Options) (TableStats, error) {
+func (t *k8sTable) Stats(opts *Options) (TableStats, error) {
 	return TableStats{Rows: uint(t.Rows), StartCost: 10, TotalCost: 1000}, nil
 }
-func (t helloTable) Scan(rel *Relation, opts *Options) (Iterator, error) {
-	return nil, fmt.Errorf("no such luck")
-	// return &helloIter{t: t, rel: rel}, nil
+
+func (t *k8sTable) Scan(rel *Relation, opts *Options) (Iterator, error) {
+	if t.k8sClient == nil {
+		kubeconfig, ok := opts.ServerOptions["kubeconfig"]
+		if !ok {
+			return nil, errors.New("server option kubeconfig is mandatory")
+		}
+
+		client, err := GetClient(kubeconfig, true)
+		if err != nil {
+			return errors.Wrap(err, "couldn't get kubeconfig")
+		}
+		k8sTable.k8sClient = client
+	}
+
+	scanState, err := t.k8sClient.GetTableScanner(rel.Attrs, opts.TableOptions)
+	if err != nil {
+		return errors.Wrap(err, "failed to get scanner")
+	}
+
+	return &listIter{
+		scanState: scanState,
+	}
 }
 
-var _ Explainable = (*helloIter)(nil)
-
-type helloIter struct {
-	t   helloTable
-	rel *Relation
-	row int
+type listIter struct {
+	sync.Mutex
+	scanState *client.ScanState
 }
 
-func (it *helloIter) Explain(e Explainer) {
+var _ Explainable = (*k8sTable)(nil)
+
+func (it *listIter) Explain(e Explainer) {
 	e.Property("Powered by", "Go FDW")
 }
-func (it *helloIter) Next() ([]interface{}, error) {
-	if it.row >= it.t.Rows {
-		return nil, nil
-	}
-	out := make([]interface{}, len(it.rel.Attr.Attrs))
-	for i := range out {
-		attr := it.rel.Attr.Attrs[i]
-		if !attr.NotNull {
-			continue
-		}
-		switch attr.Type {
-		case TypeInt16, TypeInt32, TypeInt64:
-			out[i] = int(it.row)
-		case TypeText:
-			out[i] = fmt.Sprintf("Row: %d, Col: %q", it.row, attr.Name)
-		}
-	}
-	it.row++
-	return out, nil
+
+func (it *listIter) Next() ([]interface{}, error) {
+	return it.scanState.Next()
 }
-func (it *helloIter) Reset()       { it.row = 0 }
-func (it *helloIter) Close() error { return nil }
+
+func (it *listIter) Reset() {
+	it.Lock()
+	defer it.Unlock()
+	it.scanState.Reset()
+}
+func (it *listIter) Close() error { return nil }

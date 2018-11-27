@@ -47,3 +47,7 @@ func (s *ScanState) retrieve() error {
 	}
 	return errors.Wrap(err, "couldn't retrieve objects")
 }
+
+func (s *ScanState) Reset() {
+	s.curRow = 0
+}

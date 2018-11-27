@@ -14,6 +14,10 @@ go_library(
     copts = ["-Iinclude/postgresql/server -Iinclude/postgresql/internal"],  # keep
     importpath = "github.com/liztio/k8s-fdw/lib/fdw",
     visibility = ["//visibility:private"],
+    deps = [
+        "//pkg/client:go_default_library",
+        "//vendor/github.com/pkg/errors:go_default_library",
+    ],
 )
 
 go_binary(
