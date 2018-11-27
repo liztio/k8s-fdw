@@ -70,6 +70,50 @@ func newAPIHelperFromRESTConfig(cfg *rest.Config) (meta.RESTMapper, error) {
 	return restmapper.NewDiscoveryRESTMapper(groupResources), nil
 }
 
+// GetTableScanner returns a scanner appropriate for the given columns and table options.
+// The scanner will not retrieve results until the first time Next is called
+func (c *Client) GetTableScanner(columns []string, tableOpts map[string]string) (*ScanState, error) {
+	apiVersion, ok := tableOpts["apiVersion"]
+	if !ok {
+		return nil, errors.New("apiVersion is mandatory")
+	}
+	kind, ok := tableOpts["kind"]
+	if !ok {
+		return nil, errors.New("kind is mandatory")
+	}
+
+	groupVersion, err := schema.ParseGroupVersion(apiVersion)
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldn't parse group version %q", apiVersion)
+	}
+
+	gvk := groupVersion.WithKind(kind)
+	gvr, err := c.GetResourceForKind(&gvk)
+	if err != nil {
+		return nil, errors.Wrapf(err, "couldnt get resource for kind %v", gvk.String())
+	}
+
+	return c.makeTableScanner(gvr, columns, tableOpts)
+}
+
+func (c *Client) makeTableScanner(gvr *schema.GroupVersionResource, columns []string, tableOpts map[string]string) (*ScanState, error) {
+	scanColumns := make([]string, len(columns))
+	for i, col := range columns {
+		alias, ok := tableOpts["@"+col]
+		if ok {
+			scanColumns[i] = alias
+			continue
+		}
+		scanColumns[i] = col
+	}
+
+	return &ScanState{
+		client:    c.dyn.Resource(*gvr),
+		namespace: tableOpts["namespace"],
+		fields:    scanColumns,
+	}, nil
+}
+
 // GetResourceForKind turns a GroupVersionKind into a GroupVersionResource
 func (c *Client) GetResourceForKind(gvk *schema.GroupVersionKind) (*schema.GroupVersionResource, error) {
 	mapping, err := c.mapper.RESTMapping(gvk.GroupKind(), gvk.Version)

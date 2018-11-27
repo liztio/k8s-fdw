@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -188,6 +189,70 @@ func TestAsRows(t *testing.T) {
 
 			if a.NoError(err) {
 				a.Equal(test.expected, result)
+			}
+		})
+	}
+}
+
+func TestGetTableScanner(t *testing.T) {
+	tests := []struct {
+		name              string
+		cols              []string
+		tableOpts         map[string]string
+		expectedCols      []string
+		expectedNamespace string
+	}{
+		{
+			name:         "no table mappings",
+			cols:         []string{"metadata.name", "metadata.namespace"},
+			expectedCols: []string{"metadata.name", "metadata.namespace"},
+		},
+		{
+			name:              "namespace",
+			tableOpts:         map[string]string{"namespace": "testnamespace"},
+			cols:              []string{"metadata.name", "metadata.namespace"},
+			expectedCols:      []string{"metadata.name", "metadata.namespace"},
+			expectedNamespace: "testnamespace",
+		},
+		{
+			name:         "partial table mappings",
+			tableOpts:    map[string]string{"@name": "metadata.name"},
+			cols:         []string{"name", "metadata.namespace"},
+			expectedCols: []string{"metadata.name", "metadata.namespace"},
+		},
+		{
+			name: "full table mappings",
+			tableOpts: map[string]string{
+				"@container": "{.spec.containers[0].image}",
+				"@name":      "metadata.name",
+			},
+			cols:         []string{"name", "container"},
+			expectedCols: []string{"metadata.name", "{.spec.containers[0].image}"},
+		},
+		{
+			name: "unusued table mappings",
+			tableOpts: map[string]string{
+				"@name":     "metadata.name",
+				"namespace": "my-namespace",
+			},
+			cols:              []string{"id", "metadata.namespace"},
+			expectedCols:      []string{"id", "metadata.namespace"},
+			expectedNamespace: "my-namespace",
+		},
+	}
+
+	c := &Client{
+		dyn: fake.NewSimpleDynamicClient(runtime.NewScheme()),
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := assert.New(t)
+
+			scan, err := c.makeTableScanner(&schema.GroupVersionResource{}, test.cols, test.tableOpts)
+			if a.NoError(err) {
+				a.Equal(test.expectedCols, scan.fields)
+				a.Equal(test.expectedNamespace, scan.namespace)
 			}
 		})
 	}
