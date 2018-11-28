@@ -26,7 +26,7 @@ func (s *ScanState) Next() ([]interface{}, error) {
 
 	// TODO(EKF): handle continue
 	if len(s.list.Items) <= s.curRow {
-		return []interface{}{}, nil
+		return nil, nil
 	}
 
 	row, err := AsRows(&s.list.Items[s.curRow], s.fields)

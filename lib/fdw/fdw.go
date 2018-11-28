@@ -18,7 +18,7 @@ type k8sTable struct {
 }
 
 func (t *k8sTable) Stats(opts *Options) (TableStats, error) {
-	return TableStats{Rows: uint(t.Rows), StartCost: 10, TotalCost: 1000}, nil
+	return TableStats{Rows: uint(1), StartCost: 10, TotalCost: 1000}, nil
 }
 
 func (t *k8sTable) Scan(rel *Relation, opts *Options) (Iterator, error) {
@@ -28,21 +28,25 @@ func (t *k8sTable) Scan(rel *Relation, opts *Options) (Iterator, error) {
 			return nil, errors.New("server option kubeconfig is mandatory")
 		}
 
-		client, err := GetClient(kubeconfig, true)
+		client, err := client.GetClient(kubeconfig, true)
 		if err != nil {
-			return errors.Wrap(err, "couldn't get kubeconfig")
+			return nil, errors.Wrap(err, "couldn't get kubeconfig")
 		}
-		k8sTable.k8sClient = client
+		t.k8sClient = client
 	}
 
-	scanState, err := t.k8sClient.GetTableScanner(rel.Attrs, opts.TableOptions)
+	scanState, err := t.k8sClient.GetTableScanner(getRelColumns(rel), opts.TableOptions)
 	if err != nil {
-		return errors.Wrap(err, "failed to get scanner")
+		return nil, errors.Wrap(err, "failed to get scanner")
 	}
 
 	return &listIter{
 		scanState: scanState,
-	}
+	}, nil
+}
+
+func (it *k8sTable) Explain(e Explainer) {
+	e.Property("Powered by", "Go FDW")
 }
 
 type listIter struct {
@@ -51,10 +55,6 @@ type listIter struct {
 }
 
 var _ Explainable = (*k8sTable)(nil)
-
-func (it *listIter) Explain(e Explainer) {
-	e.Property("Powered by", "Go FDW")
-}
 
 func (it *listIter) Next() ([]interface{}, error) {
 	return it.scanState.Next()
@@ -66,3 +66,13 @@ func (it *listIter) Reset() {
 	it.scanState.Reset()
 }
 func (it *listIter) Close() error { return nil }
+
+func getRelColumns(rel *Relation) []client.Column {
+	cols := make([]client.Column, len(rel.Attr.Attrs))
+	for i, attr := range rel.Attr.Attrs {
+		cols[i].Name = attr.Name
+		cols[i].Options = attr.Options
+	}
+
+	return cols
+}

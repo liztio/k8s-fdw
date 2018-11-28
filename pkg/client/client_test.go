@@ -197,47 +197,54 @@ func TestAsRows(t *testing.T) {
 func TestGetTableScanner(t *testing.T) {
 	tests := []struct {
 		name              string
-		cols              []string
+		cols              []Column
 		tableOpts         map[string]string
 		expectedCols      []string
 		expectedNamespace string
 	}{
 		{
-			name:         "no table mappings",
-			cols:         []string{"metadata.name", "metadata.namespace"},
+			name: "no table mappings",
+			cols: []Column{
+				{Name: "metadata.name"},
+				{Name: "metadata.namespace"},
+			},
 			expectedCols: []string{"metadata.name", "metadata.namespace"},
 		},
 		{
-			name:              "namespace",
-			tableOpts:         map[string]string{"namespace": "testnamespace"},
-			cols:              []string{"metadata.name", "metadata.namespace"},
+			name:      "namespace",
+			tableOpts: map[string]string{"namespace": "testnamespace"},
+			cols: []Column{
+				{Name: "metadata.name"},
+				{Name: "metadata.namespace"},
+			},
 			expectedCols:      []string{"metadata.name", "metadata.namespace"},
 			expectedNamespace: "testnamespace",
 		},
 		{
-			name:         "partial table mappings",
-			tableOpts:    map[string]string{"@name": "metadata.name"},
-			cols:         []string{"name", "metadata.namespace"},
+			name: "partial table mappings",
+			cols: []Column{
+				{
+					Name:    "name",
+					Options: map[string]string{"alias": "metadata.name"},
+				},
+				{Name: "metadata.namespace"},
+			},
 			expectedCols: []string{"metadata.name", "metadata.namespace"},
 		},
 		{
 			name: "full table mappings",
-			tableOpts: map[string]string{
-				"@container": "{.spec.containers[0].image}",
-				"@name":      "metadata.name",
+			cols: []Column{
+				{
+					Name:    "name",
+					Options: map[string]string{"alias": "metadata.name"},
+				},
+				{
+					Name:    "Container",
+					Options: map[string]string{"alias": "{.spec.containers[0].image}"},
+				},
 			},
-			cols:         []string{"name", "container"},
+
 			expectedCols: []string{"metadata.name", "{.spec.containers[0].image}"},
-		},
-		{
-			name: "unusued table mappings",
-			tableOpts: map[string]string{
-				"@name":     "metadata.name",
-				"namespace": "my-namespace",
-			},
-			cols:              []string{"id", "metadata.namespace"},
-			expectedCols:      []string{"id", "metadata.namespace"},
-			expectedNamespace: "my-namespace",
 		},
 	}
 

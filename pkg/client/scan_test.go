@@ -44,9 +44,9 @@ func TestNext(t *testing.T) {
 						*pod,
 					},
 				},
-				fields: []string{"metadata.name", "metadata.namespace"},
+				fields: []string{"metadata.name", "metadata.namespace", "{.spec.containers[0].image}"},
 			},
-			expected: []interface{}{"myapp-pod", "test-namespace"},
+			expected: []interface{}{"myapp-pod", "test-namespace", "busybox"},
 		},
 		{
 			name: "retrieve options",
@@ -69,7 +69,7 @@ func TestNext(t *testing.T) {
 			vals, err := test.state.Next()
 			if a.NoError(err) {
 				if test.expected == nil {
-					a.Empty(vals)
+					a.Nil(vals)
 				} else {
 					a.Equal(test.expected, vals)
 				}

@@ -18,7 +18,13 @@ import (
 	"k8s.io/client-go/util/jsonpath"
 )
 
-// Client represents
+// Column holds all the information we need about a column
+type Column struct {
+	Name    string
+	Options map[string]string
+}
+
+// Client represents a kubernetes client
 type Client struct {
 	restcfg *rest.Config
 	dyn     dynamic.Interface
@@ -72,14 +78,14 @@ func newAPIHelperFromRESTConfig(cfg *rest.Config) (meta.RESTMapper, error) {
 
 // GetTableScanner returns a scanner appropriate for the given columns and table options.
 // The scanner will not retrieve results until the first time Next is called
-func (c *Client) GetTableScanner(columns []string, tableOpts map[string]string) (*ScanState, error) {
-	apiVersion, ok := tableOpts["apiVersion"]
+func (c *Client) GetTableScanner(columns []Column, tableOpts map[string]string) (*ScanState, error) {
+	apiVersion, ok := tableOpts["apiversion"]
 	if !ok {
-		return nil, errors.New("apiVersion is mandatory")
+		return nil, fmt.Errorf("apiversion is mandatory (opts were %v)", tableOpts)
 	}
 	kind, ok := tableOpts["kind"]
 	if !ok {
-		return nil, errors.New("kind is mandatory")
+		return nil, fmt.Errorf("kind is mandatory (opts were %v)", tableOpts)
 	}
 
 	groupVersion, err := schema.ParseGroupVersion(apiVersion)
@@ -96,15 +102,15 @@ func (c *Client) GetTableScanner(columns []string, tableOpts map[string]string) 
 	return c.makeTableScanner(gvr, columns, tableOpts)
 }
 
-func (c *Client) makeTableScanner(gvr *schema.GroupVersionResource, columns []string, tableOpts map[string]string) (*ScanState, error) {
+func (c *Client) makeTableScanner(gvr *schema.GroupVersionResource, columns []Column, tableOpts map[string]string) (*ScanState, error) {
 	scanColumns := make([]string, len(columns))
 	for i, col := range columns {
-		alias, ok := tableOpts["@"+col]
+		alias, ok := col.Options["alias"]
 		if ok {
 			scanColumns[i] = alias
 			continue
 		}
-		scanColumns[i] = col
+		scanColumns[i] = col.Name
 	}
 
 	return &ScanState{
