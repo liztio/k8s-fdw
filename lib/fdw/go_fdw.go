@@ -3,6 +3,7 @@ package main
 //#cgo CFLAGS: -Iinclude/postgresql/server -Iinclude/postgresql/internal
 //
 //#include "postgres.h"
+//#include "access/attnum.h"
 //#include "access/htup_details.h"
 //#include "access/reloptions.h"
 //#include "access/sysattr.h"
@@ -35,9 +36,9 @@ package main
 //typedef TupleTableSlot* (*ExecStoreTupleFunc) (HeapTuple tuple, TupleTableSlot *slot, Buffer buffer, bool shouldFree);
 //typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
 //typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
+//typedef List* (*GetForeignColumnOptionsFunc) (Oid relid, AttrNumber attnum);
 //typedef char* (*defGetStringFunc) (DefElem *def);
 //typedef void (*EReportFunc) (const char *msg);
-//
 //typedef struct GoFdwExecutionState
 //{
 // uint tok;
@@ -56,6 +57,7 @@ package main
 //
 //  GetForeignTableFunc GetForeignTable;
 //  GetForeignServerFunc GetForeignServer;
+//  GetForeignColumnOptionsFunc GetForeignColumnOptions;
 //  EReportFunc EReport;
 //	defGetStringFunc defGetString;
 //} GoFdwFunctions;
@@ -96,6 +98,9 @@ package main
 //
 //static inline ForeignServer* callGetForeignServer(GoFdwFunctions h, Oid relid){
 //  return (*(h.GetForeignServer))(relid);
+//}
+//static inline List* callGetForeignColumnOptions(GoFdwFunctions h, Oid relid, AttrNumber attnum) {
+//  return (*(h.GetForeignColumnOptions))(relid, attnum);
 //}
 //
 //static inline void callEReport(GoFdwFunctions h, const char *msg) {
@@ -189,6 +194,7 @@ type Attr struct {
 	Name    string
 	Type    Oid
 	NotNull bool
+	Options map[string]string
 }
 
 type TableStats struct {
@@ -243,9 +249,10 @@ var (
 	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
 	execStoreTuple            func(tuple C.HeapTuple, slot *C.TupleTableSlot, buffer C.Buffer, shouldFree C.bool) *C.TupleTableSlot
 
-	getForeignTable  func(relid C.Oid) *C.ForeignTable
-	getForeignServer func(relid C.Oid) *C.ForeignServer
-	defGetString     func(def *C.DefElem) *C.char
+	getForeignTable         func(relid C.Oid) *C.ForeignTable
+	getForeignServer        func(relid C.Oid) *C.ForeignServer
+	getForeignColumnOptions func(relid C.Oid, attrnum C.AttrNumber) *C.List
+	defGetString            func(def *C.DefElem) *C.char
 
 	ereport func(*C.char)
 )
@@ -289,6 +296,10 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	getForeignServer = func(relid C.Oid) *C.ForeignServer {
 		return C.callGetForeignServer(h, relid)
 	}
+	getForeignColumnOptions = func(relid C.Oid, attrnum C.AttrNumber) *C.List {
+		return C.callGetForeignColumnOptions(h, relid, attrnum)
+	}
+
 	defGetString = func(def *C.DefElem) *C.char {
 		return C.callDefGetString(h, def)
 	}
@@ -547,6 +558,8 @@ func buildAttr(attr *C.FormData_pg_attribute) (out Attr) {
 	out.Name = goString(unsafe.Pointer(&attr.attname.data[0]), nameLen)
 	out.Type = Oid(attr.atttypid)
 	out.NotNull = goBool(attr.attnotnull)
+	out.Options = getOptions(getForeignColumnOptions(attr.attrelid, attr.attnum))
+
 	return
 }
 

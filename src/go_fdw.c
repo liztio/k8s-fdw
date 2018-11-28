@@ -64,6 +64,7 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.TupleDescGetAttInMetadata = &TupleDescGetAttInMetadata;
   h.GetForeignTable = &GetForeignTable;
   h.GetForeignServer = &GetForeignServer;
+  h.GetForeignColumnOptions = &GetForeignColumnOptions;
   h.defGetString = &defGetString;
   h.EReport = &goEReport;
   goMapFuncs(h);
