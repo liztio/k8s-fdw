@@ -56,10 +56,10 @@ func TestNext(t *testing.T) {
 					Version:  "v1",
 					Resource: "pods",
 				}),
-				fields:    []string{"metadata.name", "metadata.namespace"},
+				fields:    []string{"metadata.name", "metadata.namespace", "{.spec.containers[0].image}"},
 				namespace: "test-namespace",
 			},
-			expected: []interface{}{"myapp-pod", "test-namespace"},
+			expected: []interface{}{"myapp-pod", "test-namespace", "busybox"},
 		},
 	}
 
