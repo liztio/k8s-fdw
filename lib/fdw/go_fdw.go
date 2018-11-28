@@ -33,11 +33,12 @@ package main
 //typedef TupleTableSlot* (*ExecClearTupleFunc) (TupleTableSlot *slot);
 //typedef HeapTuple (*BuildTupleFromCStringsFunc) (AttInMetadata *attinmeta, char **values);
 //typedef AttInMetadata* (*TupleDescGetAttInMetadataFunc) (TupleDesc tupdesc);
-//typedef TupleTableSlot* (*ExecStoreTupleFunc) (HeapTuple tuple, TupleTableSlot *slot, Buffer buffer, bool shouldFree);
+//typedef TupleTableSlot* (*ExecStoreVirtualTupleFunc) (TupleTableSlot *slot);
 //typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
 //typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
 //typedef List* (*GetForeignColumnOptionsFunc) (Oid relid, AttrNumber attnum);
 //typedef char* (*defGetStringFunc) (DefElem *def);
+//typedef Datum (*CStringGetDatumFunc) (const char *msg);
 //typedef void (*EReportFunc) (const char *msg);
 //typedef struct GoFdwExecutionState
 //{
@@ -53,7 +54,8 @@ package main
 //  ExecClearTupleFunc ExecClearTuple;
 //  BuildTupleFromCStringsFunc BuildTupleFromCStrings;
 //  TupleDescGetAttInMetadataFunc TupleDescGetAttInMetadata;
-//  ExecStoreTupleFunc ExecStoreTuple;
+//  ExecStoreVirtualTupleFunc ExecStoreVirtualTuple;
+//  CStringGetDatumFunc CStringGetDatum;
 //
 //  GetForeignTableFunc GetForeignTable;
 //  GetForeignServerFunc GetForeignServer;
@@ -88,8 +90,8 @@ package main
 //  return (*(h.TupleDescGetAttInMetadata))(tupdesc);
 //}
 //
-//static inline TupleTableSlot* callExecStoreTuple(GoFdwFunctions h, HeapTuple tuple, TupleTableSlot *slot, Buffer buffer, bool shouldFree){
-//  return (*(h.ExecStoreTuple))(tuple, slot, buffer, shouldFree);
+//static inline TupleTableSlot* callExecStoreVirtualTuple(GoFdwFunctions h, TupleTableSlot *slot){
+//  return (*(h.ExecStoreVirtualTuple))(slot);
 //}
 //
 //static inline ForeignTable* callGetForeignTable(GoFdwFunctions h, Oid relid){
@@ -106,6 +108,9 @@ package main
 //static inline void callEReport(GoFdwFunctions h, const char *msg) {
 //  (*(h.EReport))(msg);
 //}
+// static inline Datum callCStringGetDatum(GoFdwFunctions h, const char *str) {
+//   return (*(h.CStringGetDatum))(str);
+// }
 //static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
 //  return (*(h.defGetString))(def);
 //}
@@ -247,12 +252,12 @@ var (
 	execClearTuple            func(slot *C.TupleTableSlot) *C.TupleTableSlot
 	buildTupleFromCStrings    func(attinmeta *C.AttInMetadata, values **C.char) C.HeapTuple
 	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
-	execStoreTuple            func(tuple C.HeapTuple, slot *C.TupleTableSlot, buffer C.Buffer, shouldFree C.bool) *C.TupleTableSlot
-
-	getForeignTable         func(relid C.Oid) *C.ForeignTable
-	getForeignServer        func(relid C.Oid) *C.ForeignServer
-	getForeignColumnOptions func(relid C.Oid, attrnum C.AttrNumber) *C.List
-	defGetString            func(def *C.DefElem) *C.char
+	execStoreVirtualTuple     func(slot *C.TupleTableSlot) *C.TupleTableSlot
+	cstringGetDatum           func(str *C.char) C.Datum
+	getForeignTable           func(relid C.Oid) *C.ForeignTable
+	getForeignServer          func(relid C.Oid) *C.ForeignServer
+	getForeignColumnOptions   func(relid C.Oid, attrnum C.AttrNumber) *C.List
+	defGetString              func(def *C.DefElem) *C.char
 
 	ereport func(*C.char)
 )
@@ -287,8 +292,8 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	tupleDescGetAttInMetadata = func(tupdesc C.TupleDesc) *C.AttInMetadata {
 		return C.callTupleDescGetAttInMetadata(h, tupdesc)
 	}
-	execStoreTuple = func(tuple C.HeapTuple, slot *C.TupleTableSlot, buffer C.Buffer, shouldFree C.bool) *C.TupleTableSlot {
-		return C.callExecStoreTuple(h, tuple, slot, buffer, shouldFree)
+	execStoreVirtualTuple = func(slot *C.TupleTableSlot) *C.TupleTableSlot {
+		return C.callExecStoreVirtualTuple(h, slot)
 	}
 	getForeignTable = func(relid C.Oid) *C.ForeignTable {
 		return C.callGetForeignTable(h, relid)
@@ -305,6 +310,10 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	}
 	ereport = func(msg *C.char) {
 		C.callEReport(h, msg)
+	}
+
+	cstringGetDatum = func(str *C.char) C.Datum {
+		return C.callCStringGetDatum(h, str)
 	}
 }
 
@@ -412,21 +421,31 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 		return slot
 	}
 
-	values := make([]*C.char, len(s.Rel.Attr.Attrs))
 	for i := range s.Rel.Attr.Attrs {
 		v := row[i]
 		if v == nil {
-			p := unsafe.Pointer(uintptr(unsafe.Pointer(slot.tts_isnull)) + uintptr(C.sizeof_bool))
+			p := unsafe.Pointer(
+				uintptr(unsafe.Pointer(slot.tts_isnull)) +
+					uintptr(C.sizeof_bool))
 			*((*C.bool)(p)) = 1
 			continue
 		}
-		values[i] = C.CString(fmt.Sprint(v))
+
+		datum, err := valToDatum(v)
+		if err != nil {
+			errReport(err)
+			return nil
+		}
+		// everyone loves manually calculating array offsets
+		p := unsafe.Pointer(
+			uintptr(unsafe.Pointer(slot.tts_values)) +
+				unsafe.Sizeof(datum)*uintptr(i))
+		*((*C.Datum)(p)) = datum
 	}
 
-	rel := node.ss.ss_currentRelation
-	attinmeta := tupleDescGetAttInMetadata(rel.rd_att)
-	tuple := buildTupleFromCStrings(attinmeta, (**C.char)(&values[0]))
-	execStoreTuple(tuple, slot, C.InvalidBuffer, 1)
+	// rel := node.ss.ss_currentRelation
+	// attinmeta := tupleDescGetAttInMetadata(rel.rd_att)
+	execStoreVirtualTuple(slot)
 	return slot
 }
 
@@ -568,5 +587,14 @@ func errReport(err error) {
 }
 
 // required by buildmode=c-archive
+
+func valToDatum(v interface{}) (C.Datum, error) {
+	// TODO(EKF): handle more datatypes
+
+	// I'm gonna level with you: I don't know why this works.
+	// I was getting the first character cut off, and now I'm not
+	value := C.CString(fmt.Sprintf(" %s", v))
+	return cstringGetDatum(value), nil
+}
 
 func main() {}

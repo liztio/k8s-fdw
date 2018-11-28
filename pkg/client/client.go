@@ -174,7 +174,7 @@ func AsRows(obj *unstructured.Unstructured, columns []string) ([]interface{}, er
 			return []interface{}{}, errors.Wrap(err, "couldn't traverse object")
 		}
 		if !found {
-			return []interface{}{}, fmt.Errorf("no such field %q", col)
+			val = nil
 		}
 		row[i] = val
 	}

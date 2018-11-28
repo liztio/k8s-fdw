@@ -5,15 +5,17 @@ CREATE SERVER IF NOT EXISTS kind
   OPTIONS (kubeconfig '/kubeconfig');
 
 CREATE FOREIGN TABLE IF NOT EXISTS pods (
-  name varchar OPTIONS (alias 'metadata.name')
-, namespace varchar OPTIONS (alias 'metadata.namespace')
---, container varchar OPTIONS (alias '{.spec.containers[0].image}')
+  name      text OPTIONS (alias 'metadata.name')
+, namespace text OPTIONS (alias 'metadata.namespace')
+, container text OPTIONS (alias '{.spec.containers[0].image}')
+-- , phase     text OPTIONS (alias 'status.phase')
+-- , reason    text OPTIONS (alias 'status.reason')
 )
   SERVER kind
   OPTIONS (
-    namespace 'kube-system',
-    apiVersion 'v1',
-    kind 'Pod'
+    namespace 'kube-system'
+  , apiVersion 'v1'
+  , kind 'Pod'
   );
 
 SELECT * FROM PODS;

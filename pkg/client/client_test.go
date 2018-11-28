@@ -146,10 +146,10 @@ func TestAsRows(t *testing.T) {
 			expected: []interface{}{"pi", int64(4)},
 		},
 		{
-			name:      "unknown field",
-			obj:       job,
-			rows:      []string{"nonsense"},
-			expectErr: true,
+			name:     "unknown field",
+			obj:      job,
+			rows:     []string{"nonsense"},
+			expected: []interface{}{nil},
 		},
 		{
 			name:     "jsonpath",
