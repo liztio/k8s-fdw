@@ -8,8 +8,6 @@ package main
 //#include "access/reloptions.h"
 //#include "access/sysattr.h"
 //#include "catalog/pg_foreign_table.h"
-//#include "commands/copy.h"
-//#include "commands/defrem.h"
 //#include "commands/explain.h"
 //#include "commands/vacuum.h"
 //#include "foreign/fdwapi.h"
@@ -40,6 +38,7 @@ package main
 //typedef char* (*defGetStringFunc) (DefElem *def);
 //typedef Datum (*CStringGetDatumFunc) (const char *msg);
 //typedef void (*EReportFunc) (const char *msg);
+//typedef void (*saveTupleFunc) (Datum *data, bool *isnull, ScanState *state);
 //typedef struct GoFdwExecutionState
 //{
 // uint tok;
@@ -62,6 +61,7 @@ package main
 //  GetForeignColumnOptionsFunc GetForeignColumnOptions;
 //  EReportFunc EReport;
 //	defGetStringFunc defGetString;
+//  saveTupleFunc saveTuple;
 //} GoFdwFunctions;
 //
 //static inline void callExplainPropertyText(GoFdwFunctions h, const char *qlabel, const char *value, ExplainState *es){
@@ -120,6 +120,9 @@ package main
 //  return s;
 //}
 //
+// static inline void callSaveTuple(GoFdwFunctions h, Datum *data, bool *isnull, ScanState *state) {
+//   (*(h.saveTuple))(data, isnull, state);
+// }
 //static inline DefElem* cellGetDef(ListCell *n) { return (DefElem*)n->data.ptr_value; }
 //
 //static inline void freeState(GoFdwExecutionState * s){ if (s) free(s); }
@@ -189,6 +192,7 @@ type Relation struct {
 }
 
 type TupleDesc struct {
+	Raw     C.TupleDesc
 	TypeID  Oid
 	TypeMod int
 	HasOid  bool
@@ -258,8 +262,8 @@ var (
 	getForeignServer          func(relid C.Oid) *C.ForeignServer
 	getForeignColumnOptions   func(relid C.Oid, attrnum C.AttrNumber) *C.List
 	defGetString              func(def *C.DefElem) *C.char
-
-	ereport func(*C.char)
+	saveTuple                 func(data *C.Datum, isnull *C.bool, state *C.ScanState)
+	ereport                   func(*C.char)
 )
 
 //export goMapFuncs
@@ -314,6 +318,10 @@ func goMapFuncs(h C.GoFdwFunctions) {
 
 	cstringGetDatum = func(str *C.char) C.Datum {
 		return C.callCStringGetDatum(h, str)
+	}
+
+	saveTuple = func(data *C.Datum, isnull *C.bool, state *C.ScanState) {
+		C.callSaveTuple(h, data, isnull, state)
 	}
 }
 
@@ -421,13 +429,12 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 		return slot
 	}
 
-	for i := range s.Rel.Attr.Attrs {
-		v := row[i]
+	isNull := make([]C.bool, len(row))
+	data := make([]C.Datum, len(row))
+
+	for i, v := range row {
 		if v == nil {
-			p := unsafe.Pointer(
-				uintptr(unsafe.Pointer(slot.tts_isnull)) +
-					uintptr(C.sizeof_bool))
-			*((*C.bool)(p)) = 1
+			isNull[i] = C.bool(1)
 			continue
 		}
 
@@ -437,15 +444,10 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 			return nil
 		}
 		// everyone loves manually calculating array offsets
-		p := unsafe.Pointer(
-			uintptr(unsafe.Pointer(slot.tts_values)) +
-				unsafe.Sizeof(datum)*uintptr(i))
-		*((*C.Datum)(p)) = datum
+		data[i] = datum
 	}
 
-	// rel := node.ss.ss_currentRelation
-	// attinmeta := tupleDescGetAttInMetadata(rel.rd_att)
-	execStoreVirtualTuple(slot)
+	saveTuple(&data[0], &isNull[0], &node.ss)
 	return slot
 }
 
@@ -593,7 +595,7 @@ func valToDatum(v interface{}) (C.Datum, error) {
 
 	// I'm gonna level with you: I don't know why this works.
 	// I was getting the first character cut off, and now I'm not
-	value := C.CString(fmt.Sprintf(" %s", v))
+	value := C.CString(fmt.Sprintf("%s", v))
 	return cstringGetDatum(value), nil
 }
 

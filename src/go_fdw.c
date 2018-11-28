@@ -10,7 +10,9 @@
 
 #include "postgres.h"
 #include "utils/elog.h"
+#include "utils/builtins.h"
 
+#include "commands/defrem.h"
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -38,6 +40,7 @@ static ForeignScan *goGetForeignPlan(PlannerInfo *root,
 //static TupleTableSlot *goIterateForeignScan(ForeignScanState *node);
 
 static Datum goCStringGetDatum(const char *str);
+static void saveTuple(Datum *data, bool *isnull, ScanState *state);
 static void goEReport(const char *msg);
 
 Datum
@@ -61,8 +64,7 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.add_path = &add_path;
   h.BuildTupleFromCStrings = &BuildTupleFromCStrings;
   h.ExecClearTuple = &ExecClearTuple;
-  h.ExecStoreVirtualTuple = &ExecStoreVirtualTuple;
-  h.TupleDescGetAttInMetadata = &TupleDescGetAttInMetadata;
+  h.saveTuple = &saveTuple;
   h.GetForeignTable = &GetForeignTable;
   h.GetForeignServer = &GetForeignServer;
   h.GetForeignColumnOptions = &GetForeignColumnOptions;
@@ -110,7 +112,12 @@ static void goEReport(const char *msg) {
 }
 
 static Datum goCStringGetDatum(const char *str) {
-  return CStringGetDatum(str);
+  PG_RETURN_TEXT_P(CStringGetTextDatum(str));
+}
+
+static void saveTuple(Datum *data, bool *isnull, ScanState *state) {
+  HeapTuple tuple = heap_form_tuple(state->ss_currentRelation->rd_att, data, isnull);
+  ExecStoreTuple(tuple, state->ss_ScanTupleSlot, InvalidBuffer, false);
 }
 
 /*
