@@ -8,8 +8,6 @@ CREATE FOREIGN TABLE IF NOT EXISTS pods (
   name      text OPTIONS (alias 'metadata.name')
 , namespace text OPTIONS (alias 'metadata.namespace')
 , container text OPTIONS (alias '{.spec.containers[0].image}')
-, phase     text OPTIONS (alias 'status.phase')
-, reason    text OPTIONS (alias 'status.reason')
 , labels   jsonb OPTIONS (alias 'metadata.labels')
 )
   SERVER kind
@@ -19,4 +17,28 @@ CREATE FOREIGN TABLE IF NOT EXISTS pods (
   , kind 'Pod'
   );
 
-SELECT * FROM PODS;
+CREATE FOREIGN TABLE IF NOT EXISTS replica_sets (
+  name      text OPTIONS (alias 'metadata.name')
+, replicas  bigint OPTIONS (alias 'status.replicas')
+, available bigint OPTIONS (alias 'status.availableReplicas')
+)
+  SERVER kind
+  OPTIONS (
+    namespace 'kube-system'
+  , apiVersion 'apps/v1'
+  , kind 'ReplicaSet'
+  );
+
+CREATE FOREIGN TABLE IF NOT EXISTS deployments (
+  name      text OPTIONS (alias 'metadata.name')
+, replicas  bigint OPTIONS (alias 'status.replicas')
+, available bigint OPTIONS (alias 'status.availableReplicas')
+)
+  SERVER kind
+  OPTIONS (
+    namespace 'kube-system'
+  , apiVersion 'apps/v1'
+  , kind 'Deployment'
+  );
+
+SELECT * FROM replica_sets;

@@ -35,6 +35,7 @@ package main
 //typedef char* (*defGetStringFunc) (DefElem *def);
 //typedef Datum (*CStringGetDatumFunc) (const char *msg);
 //typedef Datum (*JSONGetDatumFunc) (const char *msg);
+//typedef Datum (*NumericGetDatumFunc) (int64_t num);
 //typedef void (*EReportFunc) (const char *msg);
 //typedef void (*saveTupleFunc) (Datum *data, bool *isnull, ScanState *state);
 //typedef struct GoFdwExecutionState
@@ -50,6 +51,7 @@ package main
 //
 //  CStringGetDatumFunc CStringGetDatum;
 //  JSONGetDatumFunc JSONGetDatum;
+//  NumericGetDatumFunc NumericGetDatum;
 //
 //  GetForeignTableFunc GetForeignTable;
 //  GetForeignServerFunc GetForeignServer;
@@ -100,6 +102,9 @@ package main
 //}
 //static inline Datum callJSONGetDatum(GoFdwFunctions h, const char *str) {
 //   return (*(h.JSONGetDatum))(str);
+//}
+//static inline Datum callNumericGetDatum(GoFdwFunctions h, int64_t num) {
+//   return (*(h.NumericGetDatum))(num);
 //}
 //static inline GoFdwExecutionState* makeState(){
 //  GoFdwExecutionState *s = (GoFdwExecutionState *) malloc(sizeof(GoFdwExecutionState));
@@ -248,6 +253,7 @@ var (
 	execStoreVirtualTuple     func(slot *C.TupleTableSlot) *C.TupleTableSlot
 	cstringGetDatum           func(str *C.char) C.Datum
 	jsonGetDatum              func(str *C.char) C.Datum
+	numericGetDatum           func(num C.int64_t) C.Datum
 	getForeignTable           func(relid C.Oid) *C.ForeignTable
 	getForeignServer          func(relid C.Oid) *C.ForeignServer
 	getForeignColumnOptions   func(relid C.Oid, attrnum C.AttrNumber) *C.List
@@ -299,6 +305,9 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	}
 	jsonGetDatum = func(str *C.char) C.Datum {
 		return C.callJSONGetDatum(h, str)
+	}
+	numericGetDatum = func(num C.int64_t) C.Datum {
+		return C.callNumericGetDatum(h, num)
 	}
 	defGetString = func(def *C.DefElem) *C.char {
 		return C.callDefGetString(h, def)
@@ -576,6 +585,9 @@ func valToDatum(v interface{}) (C.Datum, error) {
 	// TODO(EKF): handle more datatypes
 	// TODO(EKF): take column type into account
 	switch reflect.TypeOf(v).Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		val := reflect.ValueOf(v).Int()
+		return numericGetDatum(C.int64_t(val)), nil
 	case reflect.Map:
 		bytes, err := json.Marshal(v)
 		if err != nil {
@@ -583,7 +595,6 @@ func valToDatum(v interface{}) (C.Datum, error) {
 		}
 		value := C.CString(string(bytes))
 		return jsonGetDatum(value), nil
-
 	default:
 		value := C.CString(fmt.Sprintf("%s", v))
 		return cstringGetDatum(value), nil

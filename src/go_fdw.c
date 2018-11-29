@@ -17,6 +17,7 @@
 #include "commands/defrem.h"
 #include <sys/stat.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "lib/fdw/go_fdw.h"
 
@@ -43,6 +44,7 @@ static ForeignScan *goGetForeignPlan(PlannerInfo *root,
 
 static Datum goCStringGetDatum(const char *str);
 static Datum goJSONGetDatum(const char *str);
+static Datum goNumericGetDatum(int64_t num);
 static void saveTuple(Datum *data, bool *isnull, ScanState *state);
 static void goEReport(const char *msg);
 
@@ -72,6 +74,7 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.GetForeignColumnOptions = &GetForeignColumnOptions;
   h.CStringGetDatum = &goCStringGetDatum;
   h.JSONGetDatum = &goJSONGetDatum;
+  h.NumericGetDatum = &goNumericGetDatum;
   h.defGetString = &defGetString;
   h.EReport = &goEReport;
   goMapFuncs(h);
@@ -120,6 +123,10 @@ static Datum goCStringGetDatum(const char *str) {
 
 static Datum goJSONGetDatum(const char *str) {
   PG_RETURN_JSONB(DirectFunctionCall1(jsonb_in, CStringGetDatum(str)));
+}
+
+static Datum goNumericGetDatum(int64_t num) {
+  PG_RETURN_INT64(Int64GetDatum(num));
 }
 
 static void saveTuple(Datum *data, bool *isnull, ScanState *state) {
