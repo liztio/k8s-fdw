@@ -6,10 +6,10 @@ CREATE SERVER IF NOT EXISTS kind
 
 CREATE FOREIGN TABLE IF NOT EXISTS pods (
   name      text OPTIONS (alias 'metadata.name')
--- , namespace text OPTIONS (alias 'metadata.namespace')
--- , container text OPTIONS (alias '{.spec.containers[0].image}')
--- , phase     text OPTIONS (alias 'status.phase')
--- , reason    text OPTIONS (alias 'status.reason')
+, namespace text OPTIONS (alias 'metadata.namespace')
+, container text OPTIONS (alias '{.spec.containers[0].image}')
+, phase     text OPTIONS (alias 'status.phase')
+, reason    text OPTIONS (alias 'status.reason')
 , labels   jsonb OPTIONS (alias 'metadata.labels')
 )
   SERVER kind
