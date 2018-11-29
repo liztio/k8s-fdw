@@ -11,6 +11,8 @@
 #include "postgres.h"
 #include "utils/elog.h"
 #include "utils/builtins.h"
+#include "utils/jsonb.h"
+#include "fmgr.h"
 
 #include "commands/defrem.h"
 #include <sys/stat.h>
@@ -40,6 +42,7 @@ static ForeignScan *goGetForeignPlan(PlannerInfo *root,
 //static TupleTableSlot *goIterateForeignScan(ForeignScanState *node);
 
 static Datum goCStringGetDatum(const char *str);
+static Datum goJSONGetDatum(const char *str);
 static void saveTuple(Datum *data, bool *isnull, ScanState *state);
 static void goEReport(const char *msg);
 
@@ -69,6 +72,7 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.GetForeignServer = &GetForeignServer;
   h.GetForeignColumnOptions = &GetForeignColumnOptions;
   h.CStringGetDatum = &goCStringGetDatum;
+  h.JSONGetDatum = &goJSONGetDatum;
   h.defGetString = &defGetString;
   h.EReport = &goEReport;
   goMapFuncs(h);
@@ -113,6 +117,10 @@ static void goEReport(const char *msg) {
 
 static Datum goCStringGetDatum(const char *str) {
   PG_RETURN_TEXT_P(CStringGetTextDatum(str));
+}
+
+static Datum goJSONGetDatum(const char *str) {
+  PG_RETURN_JSONB(DirectFunctionCall1(jsonb_in, CStringGetDatum(str)));
 }
 
 static void saveTuple(Datum *data, bool *isnull, ScanState *state) {

@@ -37,6 +37,7 @@ package main
 //typedef List* (*GetForeignColumnOptionsFunc) (Oid relid, AttrNumber attnum);
 //typedef char* (*defGetStringFunc) (DefElem *def);
 //typedef Datum (*CStringGetDatumFunc) (const char *msg);
+//typedef Datum (*JSONGetDatumFunc) (const char *msg);
 //typedef void (*EReportFunc) (const char *msg);
 //typedef void (*saveTupleFunc) (Datum *data, bool *isnull, ScanState *state);
 //typedef struct GoFdwExecutionState
@@ -55,6 +56,7 @@ package main
 //  TupleDescGetAttInMetadataFunc TupleDescGetAttInMetadata;
 //  ExecStoreVirtualTupleFunc ExecStoreVirtualTuple;
 //  CStringGetDatumFunc CStringGetDatum;
+//  JSONGetDatumFunc JSONGetDatum;
 //
 //  GetForeignTableFunc GetForeignTable;
 //  GetForeignServerFunc GetForeignServer;
@@ -110,7 +112,10 @@ package main
 //}
 // static inline Datum callCStringGetDatum(GoFdwFunctions h, const char *str) {
 //   return (*(h.CStringGetDatum))(str);
-// }
+//}
+//static inline Datum callJSONGetDatum(GoFdwFunctions h, const char *str) {
+//   return (*(h.JSONGetDatum))(str);
+//}
 //static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
 //  return (*(h.defGetString))(def);
 //}
@@ -130,9 +135,13 @@ import "C"
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 var table Table
@@ -258,6 +267,7 @@ var (
 	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
 	execStoreVirtualTuple     func(slot *C.TupleTableSlot) *C.TupleTableSlot
 	cstringGetDatum           func(str *C.char) C.Datum
+	jsonGetDatum              func(str *C.char) C.Datum
 	getForeignTable           func(relid C.Oid) *C.ForeignTable
 	getForeignServer          func(relid C.Oid) *C.ForeignServer
 	getForeignColumnOptions   func(relid C.Oid, attrnum C.AttrNumber) *C.List
@@ -318,6 +328,9 @@ func goMapFuncs(h C.GoFdwFunctions) {
 
 	cstringGetDatum = func(str *C.char) C.Datum {
 		return C.callCStringGetDatum(h, str)
+	}
+	jsonGetDatum = func(str *C.char) C.Datum {
+		return C.callJSONGetDatum(h, str)
 	}
 
 	saveTuple = func(data *C.Datum, isnull *C.bool, state *C.ScanState) {
@@ -592,11 +605,21 @@ func errReport(err error) {
 
 func valToDatum(v interface{}) (C.Datum, error) {
 	// TODO(EKF): handle more datatypes
+	// TODO(EKF): take column type into account
+	switch reflect.TypeOf(v).Kind() {
+	case reflect.Map:
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			return C.Datum(0), errors.Wrapf(err, "couldn't marshall %v", v)
+		}
+		value := C.CString(string(bytes))
+		return jsonGetDatum(value), nil
 
-	// I'm gonna level with you: I don't know why this works.
-	// I was getting the first character cut off, and now I'm not
-	value := C.CString(fmt.Sprintf("%s", v))
-	return cstringGetDatum(value), nil
+	default:
+		value := C.CString(fmt.Sprintf("%s", v))
+		return cstringGetDatum(value), nil
+	}
+
 }
 
 func main() {}
