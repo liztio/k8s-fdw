@@ -29,9 +29,6 @@ package main
 //    double rows, Cost startup_cost, Cost total_cost, List *pathkeys,
 //    Relids required_outer, Path *fdw_outerpath, List *fdw_private);
 //typedef TupleTableSlot* (*ExecClearTupleFunc) (TupleTableSlot *slot);
-//typedef HeapTuple (*BuildTupleFromCStringsFunc) (AttInMetadata *attinmeta, char **values);
-//typedef AttInMetadata* (*TupleDescGetAttInMetadataFunc) (TupleDesc tupdesc);
-//typedef TupleTableSlot* (*ExecStoreVirtualTupleFunc) (TupleTableSlot *slot);
 //typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
 //typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
 //typedef List* (*GetForeignColumnOptionsFunc) (Oid relid, AttrNumber attnum);
@@ -51,10 +48,6 @@ package main
 //  create_foreignscan_path_Func create_foreignscan_path;
 //  add_path_func add_path;
 //
-//  ExecClearTupleFunc ExecClearTuple;
-//  BuildTupleFromCStringsFunc BuildTupleFromCStrings;
-//  TupleDescGetAttInMetadataFunc TupleDescGetAttInMetadata;
-//  ExecStoreVirtualTupleFunc ExecStoreVirtualTuple;
 //  CStringGetDatumFunc CStringGetDatum;
 //  JSONGetDatumFunc JSONGetDatum;
 //
@@ -63,6 +56,7 @@ package main
 //  GetForeignColumnOptionsFunc GetForeignColumnOptions;
 //  EReportFunc EReport;
 //	defGetStringFunc defGetString;
+//  ExecClearTupleFunc ExecClearTuple;
 //  saveTupleFunc saveTuple;
 //} GoFdwFunctions;
 //
@@ -84,18 +78,6 @@ package main
 //  return (*(h.ExecClearTuple))(slot);
 //}
 //
-//static inline HeapTuple callBuildTupleFromCStrings(GoFdwFunctions h, AttInMetadata *attinmeta, char **values){
-//  return (*(h.BuildTupleFromCStrings))(attinmeta, values);
-//}
-//
-//static inline AttInMetadata* callTupleDescGetAttInMetadata(GoFdwFunctions h, TupleDesc tupdesc){
-//  return (*(h.TupleDescGetAttInMetadata))(tupdesc);
-//}
-//
-//static inline TupleTableSlot* callExecStoreVirtualTuple(GoFdwFunctions h, TupleTableSlot *slot){
-//  return (*(h.ExecStoreVirtualTuple))(slot);
-//}
-//
 //static inline ForeignTable* callGetForeignTable(GoFdwFunctions h, Oid relid){
 //  return (*(h.GetForeignTable))(relid);
 //}
@@ -110,16 +92,15 @@ package main
 //static inline void callEReport(GoFdwFunctions h, const char *msg) {
 //  (*(h.EReport))(msg);
 //}
+//static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
+//  return (*(h.defGetString))(def);
+//}
 // static inline Datum callCStringGetDatum(GoFdwFunctions h, const char *str) {
 //   return (*(h.CStringGetDatum))(str);
 //}
 //static inline Datum callJSONGetDatum(GoFdwFunctions h, const char *str) {
 //   return (*(h.JSONGetDatum))(str);
 //}
-//static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
-//  return (*(h.defGetString))(def);
-//}
-//
 //static inline GoFdwExecutionState* makeState(){
 //  GoFdwExecutionState *s = (GoFdwExecutionState *) malloc(sizeof(GoFdwExecutionState));
 //  return s;
@@ -263,7 +244,6 @@ var (
 	addPath func(parent_rel *C.RelOptInfo, new_path *C.Path)
 
 	execClearTuple            func(slot *C.TupleTableSlot) *C.TupleTableSlot
-	buildTupleFromCStrings    func(attinmeta *C.AttInMetadata, values **C.char) C.HeapTuple
 	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
 	execStoreVirtualTuple     func(slot *C.TupleTableSlot) *C.TupleTableSlot
 	cstringGetDatum           func(str *C.char) C.Datum
@@ -300,15 +280,6 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	execClearTuple = func(slot *C.TupleTableSlot) *C.TupleTableSlot {
 		return C.callExecClearTuple(h, slot)
 	}
-	buildTupleFromCStrings = func(attinmeta *C.AttInMetadata, values **C.char) C.HeapTuple {
-		return C.callBuildTupleFromCStrings(h, attinmeta, values)
-	}
-	tupleDescGetAttInMetadata = func(tupdesc C.TupleDesc) *C.AttInMetadata {
-		return C.callTupleDescGetAttInMetadata(h, tupdesc)
-	}
-	execStoreVirtualTuple = func(slot *C.TupleTableSlot) *C.TupleTableSlot {
-		return C.callExecStoreVirtualTuple(h, slot)
-	}
 	getForeignTable = func(relid C.Oid) *C.ForeignTable {
 		return C.callGetForeignTable(h, relid)
 	}
@@ -319,9 +290,6 @@ func goMapFuncs(h C.GoFdwFunctions) {
 		return C.callGetForeignColumnOptions(h, relid, attrnum)
 	}
 
-	defGetString = func(def *C.DefElem) *C.char {
-		return C.callDefGetString(h, def)
-	}
 	ereport = func(msg *C.char) {
 		C.callEReport(h, msg)
 	}
@@ -331,6 +299,9 @@ func goMapFuncs(h C.GoFdwFunctions) {
 	}
 	jsonGetDatum = func(str *C.char) C.Datum {
 		return C.callJSONGetDatum(h, str)
+	}
+	defGetString = func(def *C.DefElem) *C.char {
+		return C.callDefGetString(h, def)
 	}
 
 	saveTuple = func(data *C.Datum, isnull *C.bool, state *C.ScanState) {
@@ -601,8 +572,6 @@ func errReport(err error) {
 	ereport(C.CString(err.Error()))
 }
 
-// required by buildmode=c-archive
-
 func valToDatum(v interface{}) (C.Datum, error) {
 	// TODO(EKF): handle more datatypes
 	// TODO(EKF): take column type into account
@@ -622,4 +591,5 @@ func valToDatum(v interface{}) (C.Datum, error) {
 
 }
 
+// required by buildmode=c-archive
 func main() {}

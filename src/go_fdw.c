@@ -65,7 +65,6 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   h.ExplainPropertyText = &ExplainPropertyText;
   h.create_foreignscan_path = &create_foreignscan_path;
   h.add_path = &add_path;
-  h.BuildTupleFromCStrings = &BuildTupleFromCStrings;
   h.ExecClearTuple = &ExecClearTuple;
   h.saveTuple = &saveTuple;
   h.GetForeignTable = &GetForeignTable;
@@ -127,42 +126,3 @@ static void saveTuple(Datum *data, bool *isnull, ScanState *state) {
   HeapTuple tuple = heap_form_tuple(state->ss_currentRelation->rd_att, data, isnull);
   ExecStoreTuple(tuple, state->ss_ScanTupleSlot, InvalidBuffer, false);
 }
-
-/*
- * goIterateForeignScan
- * Generate next record and store it into the ScanTupleSlot as a virtual tuple
- */
-//static TupleTableSlot *
-//goIterateForeignScan(ForeignScanState *node)
-//{
-//  TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-//  Relation rel;
-//  AttInMetadata  *attinmeta;
-//  HeapTuple tuple;
-//  GoFdwExecutionState *hestate = (GoFdwExecutionState *) node->fdw_state;
-//  int i;
-//  int natts;
-//  char **values;
-//
-//  if( hestate->rownum != 0 ){
-//    ExecClearTuple(slot);
-//    return slot;
-//  }
-//
-//  rel = node->ss.ss_currentRelation;
-//  attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
-//
-//  natts = rel->rd_att->natts;
-//  values = (char **) palloc(sizeof(char *) * natts);
-//
-//  for(i = 0; i < natts; i++ ){
-//    values[i] = "Hello,World";
-//  }
-//
-//  tuple = BuildTupleFromCStrings(attinmeta, values);
-//  ExecStoreTuple(tuple, slot, InvalidBuffer, true);
-//
-//  hestate->rownum++;
-//
-//  return slot;
-//}
