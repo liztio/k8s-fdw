@@ -42,3 +42,10 @@ CREATE FOREIGN TABLE IF NOT EXISTS deployments (
   );
 
 SELECT * FROM replica_sets;
+
+SELECT "deployments"."name" AS deployment_name
+     , "replica_sets"."name" as replica_name
+     , "pods"."name" AS pod_name
+  FROM deployments
+  JOIN replica_sets on "replica_sets"."name" LIKE "deployments"."name" || '-%'
+  JOIN pods on "pods"."name" LIKE "replica_sets"."name" || '-%';
