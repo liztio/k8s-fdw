@@ -10,10 +10,23 @@ addons:
     - bazel
 script: bazel test //pkg/... && bazel build //src:libgo_fdw.so
 deploy:
-  provider: script
+- provider: script
   script: bash scripts/docker-push.sh
+  skip_cleanup: true
   on:
     branch: master
+- provider: releases
+  before_deploy: bazel build //:release
+  api_key:
+    secure: WAzFd75Hey6u9t2KobOkayLYsniYGoSqFmj2Xm97SHAjNJ0IvERhcZHCuN3g1q724qPNDxkSnmZZLA+eNOuTcDy2TXQI8W1Y7BpSvIz7aIT7+lg7axAxEjAA7kkfnEPowV/+T3V1l3b8GLhvke6JFUWEuyDfF/PfPqh5A0KprXRMhGQOSzmiK2HwtcRq/caYvO1j5ljjTwIrHvVa1Vtcc1rApiU0Z11VnHZxMzfzPxkIM6W3JgkRV/of6+JQQPBaPf1HGgiwq4OXCbW1ACApQIyo3zS3LZJQB333eFmnXrV3u7Ji3MrYqM9OAopIJzX3WE7HbUr/wjfOCKn1yqsBwDRI20YsNnxqEFr9S/OWQerf0bglMJG3sNF2cF0vvFdLHH5OaE8fGVPKtJBeB41MIZaJQ+zeofciTXg7sDCeaNKxNJ2Zvp31vhfRnCDOCTUGkRZF/3gyZYymp7uhYS5hJtGShhvJJUmLHl0kX8jkTssrTF+46/Gymppw/bMGPJSYUiV11Rayld2evTEXBcjw0s5xKQGGJPWrFQz/cSCyFuom3H7jn0FtI+BVk1QRDaw8Gbgy+2hOgcy9Z1Ur4S/tcR2tNRJ5dBvSICgK05D8cPsL2K0BqkYStZRc3rHfcYW0JQLXqSCPpPLtCrmQQ/+bAIGFxDi2gqQ6xnjpE6ibg54=
+  skip_cleanup: true
+  files:
+    - "bazel-bin/k8s_fdw_release.tar.gz"
+    - "bazel-genfiles/k8s_fdw_release_checksums.txt"
+  on:
+    repo: liztio/k8s-fdw
+    tags: true
+
 env:
   global:
   - secure: xeYIEoq2X/x9k9La2tGxKdfd131rmCf5uEbruqpP+2Dvynybj9l89VSutsJ9/6fGXHUnQorunEbYNDMadqh3p/I9jHKerxEuKgs4BWFVsz16PUrqltamjwA7+Rn8icZkhOZsfzcXeH/RPxljYrfSjyI2FyCuLAMhuk/IPxdgF+KcRC6rHojB9++HvMrEyg97yVKxJa+8t0tLlhq87Jfy0rn9wPJwyWLrRNiV4ZQ3YygJsVY2d3FAOYcxZu/iuAwowMDRs8cXu7903SMapYd5y4xcil9PgCvMi4VUvJiTkxrG4jK/qH5GZB7C7g1DLqnuhzs3Vz8/eAX8pnH54IqEBjEmHVMoO7nJrqKuqtSWkklNIqvG5VXpaJLTDjGOWVSDSxvhhH/agbQzDTC9+cS6xryTdStw3EgSp2sK9/gQSd+ZvYQEKSrCA7eWQhtwWC7n78pT3VWy/R72cHQgFzDl8nsZxN45MLt7qb25ASNljQrkM1im/k47SuJtk3PZ4k7DjaBlcmAIYaptG7MjFrn+fUNFKuEYJ0/CvJ4QlEYOkoTkpgOmkWDJ68+f62UUW71TruEkJ6Ww6fafOkR2W8+CQMbdLz4hrm2LyTaVx7Tk7BPOIczRt5NR7YxezKBIqFT833GNgdln7CySdewPGvonXLdaFd8XBW8Fj0Hl4kBq98M=
