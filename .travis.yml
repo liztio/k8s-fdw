@@ -1,5 +1,9 @@
 dist: xenial
 
+cache:
+  directories:
+    - $HOME/.cache/bazel
+
 addons:
   apt:
     sources:
