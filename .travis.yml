@@ -1,7 +1,4 @@
 dist: xenial
-cache:
-  directories:
-  - "$HOME/.cache/bazel"
 addons:
   apt:
     sources:
@@ -11,7 +8,7 @@ addons:
     packages:
     - openjdk-8-jdk
     - bazel
-script: bazel test //pkg/... && bazel build //src:libgo_fdw.so //:k8s_fdw_image
+script: bazel test //pkg/... && bazel build //src:libgo_fdw.so
 deploy:
   provider: script
   script: bash scripts/docker-push.sh
