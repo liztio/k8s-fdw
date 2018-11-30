@@ -388,8 +388,9 @@ func goBeginForeignScan(node *C.ForeignScanState, eflags C.int) {
 		errReport(err)
 		return
 	}
-	s := &State{
-		Rel: rel, Opts: opts,
+	s := &state{
+		Rel:  rel,
+		Opts: opts,
 		Iter: iter,
 	}
 	i := saveState(s)
@@ -464,7 +465,7 @@ func goEndForeignScan(node *C.ForeignScanState) {
 	node.fdw_state = nil
 }
 
-type State struct {
+type state struct {
 	Rel  *Relation
 	Opts *Options
 	Iter Iterator
@@ -473,10 +474,10 @@ type State struct {
 var (
 	mu   sync.RWMutex
 	si   uint64
-	sess = make(map[uint64]*State)
+	sess = make(map[uint64]*state)
 )
 
-func saveState(s *State) uint64 {
+func saveState(s *state) uint64 {
 	mu.Lock()
 	si++
 	i := si
@@ -491,7 +492,7 @@ func clearState(i uint64) {
 	mu.Unlock()
 }
 
-func getState(p unsafe.Pointer) *State {
+func getState(p unsafe.Pointer) *state {
 	if p == nil {
 		return nil
 	}
@@ -595,8 +596,11 @@ func valToDatum(v interface{}) (C.Datum, error) {
 		}
 		value := C.CString(string(bytes))
 		return jsonGetDatum(value), nil
-	default:
+	case reflect.String:
 		value := C.CString(fmt.Sprintf("%s", v))
+		return cstringGetDatum(value), nil
+	default:
+		value := C.CString(fmt.Sprintf("%v", v))
 		return cstringGetDatum(value), nil
 	}
 
