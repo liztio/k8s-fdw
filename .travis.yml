@@ -13,7 +13,7 @@ addons:
     packages:
     - openjdk-8-jdk
     - bazel
-script: bazel test //pkg/... && bazel build //src/libgo_fdw.so
+script: bazel test //pkg/... && bazel build //src:libgo_fdw.so
 deploy:
   provider: script
   script: bash scripts/docker-push.sh
