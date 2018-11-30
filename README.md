@@ -13,35 +13,13 @@ master is pushed to Docker Hub by Travis. You can run it with:
 docker run -v <path-to-kubeconfig>:/kubeconfig --rm --name=k8s_fdw liztio/k8s_fdw:latest
 ```
 
-Then you can get a postgres shell with:
+Then you can get a Postgres shell with:
 
 ```shell
 docker exec -ti k8s_fdw /bin/sh -c 'psql --user postgres'
 ```
 
-### Build
-
-This project uses [bazel][https://bazel.build] as a build system. To just build the SO file:
-
-```shell
-bazel build //src:libgo_fdw.so
-```
-
-### Install
-
-To install an extension just copy it to your Postgres installation. At the end of the build process you'll see following lines:
-
-```
-/usr/bin/install -c -m 755 ./bazel-bin/src/libgo_fdw.so  '/usr/lib/postgresql/10/lib/go_fdw.so'
-/usr/bin/install -c -m 644 .//k8s_fdw.control '/usr/share/postgresql/10/extension/'
-/usr/bin/install -c -m 644 .//k8s_fdw--0.1.sql  '/usr/share/postgresql/10/extension/'
-```
-
-### Docker
-
-You can execute the same commands to install an extension locally.
-
-### Testing
+### Examples
 
 Execute following SQL statements to load an extension:
 
@@ -69,6 +47,31 @@ And finally, run the query:
 ```sql
 SELECT * FROM pods;
 ```
+
+### Build
+
+This project uses [bazel][https://bazel.build] as a build system. To just build the SO file:
+
+```shell
+bazel build //src:libgo_fdw.so
+```
+
+### Install
+
+To install an extension just copy it to your Postgres installation. At the end of the build process you'll see following lines:
+
+```
+/usr/bin/install -c -m 755 ./bazel-bin/src/libgo_fdw.so  '/usr/lib/postgresql/10/lib/go_fdw.so'
+/usr/bin/install -c -m 644 .//k8s_fdw.control '/usr/share/postgresql/10/extension/'
+/usr/bin/install -c -m 644 .//k8s_fdw--0.1.sql  '/usr/share/postgresql/10/extension/'
+```
+
+### Docker
+
+You can execute the same commands to install an extension locally.
+
+### Testing
+
 ## Hacking
 
 An official documentation for FDW callbacks can be found [here](https://www.postgresql.org/docs/9.6/static/fdwhandler.html).
