@@ -36,4 +36,3 @@ out/
 /bazel-k8s-fdw
 /bazel-out
 /bazel-testlogs
-BUILD.bazel
