@@ -2,13 +2,12 @@ dist: xenial
 addons:
   apt:
     sources:
-    - sourceline: deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable
-        jdk1.8
+    - sourceline: deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8
       key_url: https://bazel.build/bazel-release.pub.gpg
     packages:
     - openjdk-8-jdk
     - bazel
-script: bazel test //pkg/... && bazel build //src:libgo_fdw.so
+script: bazel test //pkg/... && bazel build //src:libk8s_fdw.so
 deploy:
 - provider: script
   script: bash scripts/docker-push.sh
