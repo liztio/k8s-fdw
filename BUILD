@@ -1,5 +1,6 @@
 load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@io_bazel_rules_docker//container:image.bzl", "container_image")
+load("@io_bazel_rules_docker//container:push.bzl" , "container_push")
 
 # gazelle:prefix github.com/liztio/k8s-fdw
 gazelle(
@@ -27,3 +28,13 @@ container_image(
     },
     stamp = True,
 )
+
+container_push(
+    name = "push_latest",
+    format = "Docker",
+    image = ":k8s_fdw_image",
+    registry = "index.docker.io",
+    repository = "liztio/k8s_fdw",
+    tag = "latest",
+)
+

@@ -22,11 +22,6 @@ http_archive(
     urls = ["https://github.com/bazelbuild/rules_docker/archive/v0.5.1.tar.gz"],
 )
 
-# load("@io_bazel_rules_docker//toolchains/docker:toolchain.bzl",
-#     docker_toolchain_configure="toolchain_configure"
-# )
-# docker_toolchain_configure(name = "docker_config")
-
 load(
     "@io_bazel_rules_docker//container:container.bzl",
     "container_pull",

@@ -1,0 +1,21 @@
+services:
+- docker
+addons:
+  apt:
+    sources:
+    - sourceline: deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable
+        jdk1.8
+    - key_url: https://bazel.build/bazel-release.pub.gpg
+    packages:
+    - openjdk-8-jdk
+    - bazel
+script: bazel test //pkg/... && bazel build //src/libgo_fdw.so
+deploy:
+  provider: script
+  script: bash scripts/docker-push.sh
+  on:
+    branch: master
+env:
+  global:
+  - secure: hWfmkmCZ3jnURKZWkri1MZV0j/TkUuQZCLKpCuS63IbmX6fEyI0Ci+zs2CZoXreXg4yYOo/v2E+bBjUyE0ck5wIqNHguKyOsscWr+pUlKK5dQxq+XodjKxc7WsryYqgHC1NUSaU0BisqHFfnMd2ccyFIFjnHy0dqZsce6xgPr7k+Xwo6O8HGEee3vZGw+c9yqhE+Xa+U5GvVN/3IJPRoJUML2BnEoroIy6L1opkn32PX+uBUz1xrw7R2E5CKcvYEM02Pr5X5RJucU3pI6/hDhs3FDQPKwuA3mBFYtdiWMS1l/ShdUFa/MJnGhPjHVR6kzPQ5ThLp594Mx4MX80kjcwwwz2Wh9HKaOJKTkswuq1TUOFqGm8Mh+BpJEFj5+JKkA7lXhdPFR1nuy2yplot2QK27iJe7dJ+NjfPOVVSryVY7x6cuZ13NI23xywwOWeeS0JXjkbq9J3K8geFISN2KHBOUdzFNYm4GO2LwAUOJP8L5/Fg8uySyVwGwenj4Te9avgkcU7v0SejC7vMuFKmjcVdztjFA7zMVscTixmr8cKjc+1OfuC3QkUnsp00/v6spNQnXamH/O9VW3DkqPIPJyQQ+Fk3mwVSBwy61wJoNIAv/8wmSIPDdha6JwX6Rf+ssYQmAY4ru/NRkGKvuyVqm1buIijL5V9LW3vYOZYwASFY=
+  - secure: d0e17xtay95ejDhEmZ7puzBzf4pF35fAKXNdFKfyJuEl15+DoJFLlp5MJ6cJqi0WGY2TEnPSQIKFJWtQwaUk3LqxDejsAEAZG8aH5i+WU3OY3Ngl4OqBL05QVV57Xx6XVXTGX9c7DJFFvRPOlXI6qNclPHvo6mnCn0a0APkW6+kj08opsHH5ImxKqkZQw9VQv9mLCDIWECcfCKd8ahjX5Jv4973qQxTyV9h4JH0uKUr8Tq0gsgRsXMzN+kYjWjTJQ67Z3Ilp++6MU2tWc/XsuyoszDtm71h1sa8cHd8cvwBSkRBfCFIK9EmUqZ3rxboSkaRCN4S+RDY6pKunGey1hsHyI34dCDBTHFFYcyHnM8dLOQse852Si5srQuWoQ2UZdsB8Tjpp02SRVMWGijVmvfyliywhzaC13RW+5IkihjwQYvVczdq5UhzG7UVyXUoRChQ4gEcHj2He7wiRhykPhV7McYTaBSGvh7H22db7+qJyY/wQlrNkRfkyOw4qw5olWUMqN0ql6xEBM2r7qUp0iy/wKn/+lWrHGVJVvnlLn+co4DEzI6a1xSoCoLNGyXO1cBnfz7ZE/azQI+HLp2RCCrqQeuylhX/+muwB4ltV5sY6PRV1zilF9xDif1vJiUuHReXd6slziA0TqcwL7Pl43Sk79cjycVUFa5dj3rbG3Ow=
