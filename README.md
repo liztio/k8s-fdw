@@ -1,43 +1,43 @@
-# Go FDW for PostgreSQL
+# K8s FDW for Postgres
 
-An experimental Go project template for building PostgreSQL Foreign Data Wrappers (FDW).
+![build status](https://api.travis-ci.org/liztio/k8s-fdw.svg?branch=master)
 
-Tested with PostgreSQL v9.6 and Go 1.8.1 on Ubuntu x64.
+Ever wanted to fetch information about a Kubernetes cluster directly from Postgres? 
+Now you can! 
 
-**Supports:**
+## Let me play with it!
 
-* Table scan
-* EXPLAIN
-* Table options
+master is pushed to Docker Hub by Travis. You can run it with:
 
-Contributions are welcome!
+```shell
+docker run -v <path-to-kubeconfig>:/kubeconfig --rm --name=k8s_fdw liztio/k8s_fdw:latest
+```
 
-## Getting started
+Then you can get a postgres shell with:
 
-Module entry point is defined in `fdw.go` file (see `SetTable`). This file contains a basic working example, so give it a try.
-Later you will need to rewrite it to suit your needs.
+```shell
+docker exec -ti k8s_fdw /bin/sh -c 'psql --user postgres'
+```
 
 ### Build
 
-The easiest way to build Postgres extension is to run `dennwc/go_fdw` Docker image:
+This project uses [bazel][https://bazel.build] as a build system. To just build the SO file:
 
+```shell
+bazel build //src:libgo_fdw.so
 ```
-docker run --rm -v $GOPATH:/gopath -v $PWD/fdw.go:/build/fdw.go -v $PWD/out:/out dennwc/go_fdw
-```
-
-This command will mount your `./fdw.go` and `GOPATH` to the container, build an extension and copy it to `./out` folder.
-
-If you don't use Docker, check `Dockerfile` to see what commands are needed to manually setup your build environment.
 
 ### Install
 
 To install an extension just copy it to your Postgres installation. At the end of the build process you'll see following lines:
 
 ```
-/usr/bin/install -c -m 755  go_fdw.so '/usr/lib/postgresql/9.6/lib/go_fdw.so'
-/usr/bin/install -c -m 644 .//go_fdw.control '/usr/share/postgresql/9.6/extension/'
-/usr/bin/install -c -m 644 .//go_fdw--1.0.sql  '/usr/share/postgresql/9.6/extension/'
+/usr/bin/install -c -m 755 ./bazel-bin/src/libgo_fdw.so  '/usr/lib/postgresql/10/lib/go_fdw.so'
+/usr/bin/install -c -m 644 .//k8s_fdw.control '/usr/share/postgresql/10/extension/'
+/usr/bin/install -c -m 644 .//k8s_fdw--0.1.sql  '/usr/share/postgresql/10/extension/'
 ```
+
+### Docker
 
 You can execute the same commands to install an extension locally.
 
@@ -46,32 +46,45 @@ You can execute the same commands to install an extension locally.
 Execute following SQL statements to load an extension:
 
 ```sql
--- should match an extension lib name
--- creates a "go-fdw" FDW server record automatically (see go_fdw--1.0.sql)
-CREATE EXTENSION go_fdw;
+CREATE SERVER IF NOT EXISTS kind
+  FOREIGN DATA WRAPPER k8s_fdw
+  OPTIONS (kubeconfig '/kubeconfig');
 
--- create a foreign table for an extension
-CREATE FOREIGN TABLE public.gotest (
-  id INTEGER NOT NULL,
-  name text NOT NULL
+CREATE FOREIGN TABLE IF NOT EXISTS pods (
+  name      text OPTIONS (alias 'metadata.name')
+, namespace text OPTIONS (alias 'metadata.namespace')
+, container text OPTIONS (alias '{.spec.containers[0].image}')
+, labels   jsonb OPTIONS (alias 'metadata.labels')
 )
-SERVER "go-fdw"
-OPTIONS (foo 'bar');
+  SERVER kind
+  OPTIONS (
+    namespace 'kube-system'
+  , apiVersion 'v1'
+  , kind 'Pod'
+  );
 ```
 
 And finally, run the query:
 
 ```sql
-SELECT * FROM gotest;
+SELECT * FROM pods;
 ```
-
-**Note:** After extension is loaded, you'll need to restart Postgres to test any changes to the code.
-Database will not reload shared library file automatically.
-
 ## Hacking
-
-Project is under development and lacks few features, so feel free to send a PR or file an issue :)
 
 An official documentation for FDW callbacks can be found [here](https://www.postgresql.org/docs/9.6/static/fdwhandler.html).
 And the documentation for Postgres sources is [here](https://doxygen.postgresql.org).
 
+
+### Docker Images
+
+Bazel can create and install docker images for you.
+
+``` shell
+bazel run //:k8s_fdw_image
+```
+
+Will create an image named `bazel:k8s_fdw_image`. You can then run it with:
+
+``` shell
+docker run -v /tmp/config:/kubeconfig --rm --name=k8s_fdw bazel:k8s_fdw_image
+```
