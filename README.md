@@ -24,6 +24,8 @@ docker exec -ti k8s_fdw /bin/sh -c 'psql --user postgres'
 Execute following SQL statements to load an extension:
 
 ```sql
+CREATE EXTENSION IF NOT EXISTS k8s_fdw;
+
 CREATE SERVER IF NOT EXISTS kind
   FOREIGN DATA WRAPPER k8s_fdw
   OPTIONS (kubeconfig '/kubeconfig');
