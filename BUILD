@@ -25,4 +25,5 @@ container_image(
         "/usr/share/postgresql/10/extension/k8s_fdw.control": "/k8s_fdw.control",
         "/usr/share/postgresql/10/extension/k8s_fdw--0.1.sql": "/k8s_fdw--0.1.sql",
     },
+    stamp = True,
 )
