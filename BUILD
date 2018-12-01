@@ -58,7 +58,8 @@ pkg_tar(
 genrule(
     name = "release_checksum",
     srcs = [":k8s_fdw_release"],
-    outs = ["k8s_fdw_release_checksums.txt"],
+    outs = ["k8s_fdw_release.tar.gz.sha256"],
+    stamp = True,
     # Some shenanigans to strip all the bazel-bin/ out of the checksums
     cmd = "(cd $$(dirname $<) && sha256sum $$(basename $<)) > $@",
 )

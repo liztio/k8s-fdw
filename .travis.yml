@@ -1,4 +1,7 @@
 dist: xenial
+
+language: c
+
 addons:
   apt:
     sources:
@@ -19,9 +22,9 @@ deploy:
   api_key:
     secure: WAzFd75Hey6u9t2KobOkayLYsniYGoSqFmj2Xm97SHAjNJ0IvERhcZHCuN3g1q724qPNDxkSnmZZLA+eNOuTcDy2TXQI8W1Y7BpSvIz7aIT7+lg7axAxEjAA7kkfnEPowV/+T3V1l3b8GLhvke6JFUWEuyDfF/PfPqh5A0KprXRMhGQOSzmiK2HwtcRq/caYvO1j5ljjTwIrHvVa1Vtcc1rApiU0Z11VnHZxMzfzPxkIM6W3JgkRV/of6+JQQPBaPf1HGgiwq4OXCbW1ACApQIyo3zS3LZJQB333eFmnXrV3u7Ji3MrYqM9OAopIJzX3WE7HbUr/wjfOCKn1yqsBwDRI20YsNnxqEFr9S/OWQerf0bglMJG3sNF2cF0vvFdLHH5OaE8fGVPKtJBeB41MIZaJQ+zeofciTXg7sDCeaNKxNJ2Zvp31vhfRnCDOCTUGkRZF/3gyZYymp7uhYS5hJtGShhvJJUmLHl0kX8jkTssrTF+46/Gymppw/bMGPJSYUiV11Rayld2evTEXBcjw0s5xKQGGJPWrFQz/cSCyFuom3H7jn0FtI+BVk1QRDaw8Gbgy+2hOgcy9Z1Ur4S/tcR2tNRJ5dBvSICgK05D8cPsL2K0BqkYStZRc3rHfcYW0JQLXqSCPpPLtCrmQQ/+bAIGFxDi2gqQ6xnjpE6ibg54=
   skip_cleanup: true
-  files:
-    - "bazel-bin/k8s_fdw_release.tar.gz"
-    - "bazel-genfiles/k8s_fdw_release_checksums.txt"
+  file:
+  - "bazel-bin/k8s_fdw_release.tar.gz"
+  - "bazel-genfiles/k8s_fdw_release.tar.gz.sha256"
   on:
     repo: liztio/k8s-fdw
     tags: true
