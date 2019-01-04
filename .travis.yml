@@ -9,7 +9,7 @@ addons:
       key_url: https://bazel.build/bazel-release.pub.gpg
     packages:
     - openjdk-8-jdk
-    - bazel
+    - bazel=0.21.0
 script: bazel test //pkg/... && bazel build //src:libk8s_fdw.so
 deploy:
 - provider: script
