@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS k8s_fdw;
 
 CREATE SERVER IF NOT EXISTS kind
   FOREIGN DATA WRAPPER k8s_fdw
-  OPTIONS (kubeconfig '/kubeconfig');
+  OPTIONS (kubeconfig '/kubeconfig/cfg');
 
 CREATE FOREIGN TABLE IF NOT EXISTS pods (
   name      text OPTIONS (alias 'metadata.name')

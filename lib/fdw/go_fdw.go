@@ -1,122 +1,57 @@
 package main
 
 //#cgo CFLAGS: -Iinclude/postgresql/server -Iinclude/postgresql/internal
+//#cgo LDFLAGS: -Wl,-unresolved-symbols=ignore-all
 //
 //#include "postgres.h"
-//#include "access/attnum.h"
-//#include "access/htup_details.h"
-//#include "access/reloptions.h"
-//#include "access/sysattr.h"
-//#include "catalog/pg_foreign_table.h"
-//#include "commands/explain.h"
-//#include "commands/vacuum.h"
+//#include "funcapi.h"
+//#include "fmgr.h"
+//#include "access/relscan.h"
+//#include "catalog/pg_type.h"
+//#include "commands/defrem.h"
 //#include "foreign/fdwapi.h"
 //#include "foreign/foreign.h"
-//#include "funcapi.h"
-//#include "miscadmin.h"
-//#include "nodes/makefuncs.h"
-//#include "optimizer/cost.h"
+//#include "nodes/extensible.h"
 //#include "optimizer/pathnode.h"
-//#include "optimizer/planmain.h"
-//#include "optimizer/restrictinfo.h"
-//#include "optimizer/var.h"
-//#include "utils/memutils.h"
-//#include "utils/rel.h"
+//#include "utils/builtins.h"
+//#include "utils/elog.h"
+//#include "utils/fmgrprotos.h"
+//#include "utils/tuplestore.h"
+//#include "utils/jsonb.h"
 //
-//typedef void (*ExplainPropertyTextFunc) (const char *qlabel, const char *value, ExplainState *es);
-//typedef void (*add_path_func) (RelOptInfo *parent_rel, Path *new_path);
-//typedef ForeignPath* (*create_foreignscan_path_Func) (PlannerInfo *root, RelOptInfo *rel, PathTarget *target,
-//    double rows, Cost startup_cost, Cost total_cost, List *pathkeys,
-//    Relids required_outer, Path *fdw_outerpath, List *fdw_private);
-//typedef TupleTableSlot* (*ExecClearTupleFunc) (TupleTableSlot *slot);
-//typedef ForeignTable* (*GetForeignTableFunc) (Oid relid);
-//typedef ForeignServer* (*GetForeignServerFunc) (Oid relid);
-//typedef List* (*GetForeignColumnOptionsFunc) (Oid relid, AttrNumber attnum);
-//typedef char* (*defGetStringFunc) (DefElem *def);
-//typedef Datum (*CStringGetDatumFunc) (const char *msg);
-//typedef Datum (*JSONGetDatumFunc) (const char *msg);
-//typedef Datum (*NumericGetDatumFunc) (int64_t num);
-//typedef void (*EReportFunc) (const char *msg);
-//typedef void (*saveTupleFunc) (Datum *data, bool *isnull, ScanState *state);
 //typedef struct GoFdwExecutionState
 //{
 // uint tok;
 //} GoFdwExecutionState;
 //
-//typedef struct GoFdwFunctions
-//{
-//  ExplainPropertyTextFunc ExplainPropertyText;
-//  create_foreignscan_path_Func create_foreignscan_path;
-//  add_path_func add_path;
-//
-//  CStringGetDatumFunc CStringGetDatum;
-//  JSONGetDatumFunc JSONGetDatum;
-//  NumericGetDatumFunc NumericGetDatum;
-//
-//  GetForeignTableFunc GetForeignTable;
-//  GetForeignServerFunc GetForeignServer;
-//  GetForeignColumnOptionsFunc GetForeignColumnOptions;
-//  EReportFunc EReport;
-//	defGetStringFunc defGetString;
-//  ExecClearTupleFunc ExecClearTuple;
-//  saveTupleFunc saveTuple;
-//} GoFdwFunctions;
-//
-//static inline void callExplainPropertyText(GoFdwFunctions h, const char *qlabel, const char *value, ExplainState *es){
-//  (*(h.ExplainPropertyText))(qlabel, value, es);
-//}
-//
-//static inline void call_add_path(GoFdwFunctions h, RelOptInfo *parent_rel, Path *new_path){
-//  (*(h.add_path))(parent_rel, new_path);
-//}
-//
-//static inline ForeignPath* call_create_foreignscan_path(GoFdwFunctions h, PlannerInfo *root, RelOptInfo *rel, PathTarget *target,
-//    double rows, Cost startup_cost, Cost total_cost, List *pathkeys,
-//    Relids required_outer, Path *fdw_outerpath, List *fdw_private){
-//  return (*(h.create_foreignscan_path))(root,rel,target,rows,startup_cost,total_cost,pathkeys,required_outer,fdw_outerpath,fdw_private);
-//}
-//
-//static inline TupleTableSlot* callExecClearTuple(GoFdwFunctions h, TupleTableSlot* slot){
-//  return (*(h.ExecClearTuple))(slot);
-//}
-//
-//static inline ForeignTable* callGetForeignTable(GoFdwFunctions h, Oid relid){
-//  return (*(h.GetForeignTable))(relid);
-//}
-//
-//static inline ForeignServer* callGetForeignServer(GoFdwFunctions h, Oid relid){
-//  return (*(h.GetForeignServer))(relid);
-//}
-//static inline List* callGetForeignColumnOptions(GoFdwFunctions h, Oid relid, AttrNumber attnum) {
-//  return (*(h.GetForeignColumnOptions))(relid, attnum);
-//}
-//
-//static inline void callEReport(GoFdwFunctions h, const char *msg) {
-//  (*(h.EReport))(msg);
-//}
-//static inline char* callDefGetString(GoFdwFunctions h, DefElem *def){
-//  return (*(h.defGetString))(def);
-//}
-// static inline Datum callCStringGetDatum(GoFdwFunctions h, const char *str) {
-//   return (*(h.CStringGetDatum))(str);
-//}
-//static inline Datum callJSONGetDatum(GoFdwFunctions h, const char *str) {
-//   return (*(h.JSONGetDatum))(str);
-//}
-//static inline Datum callNumericGetDatum(GoFdwFunctions h, int64_t num) {
-//   return (*(h.NumericGetDatum))(num);
-//}
 //static inline GoFdwExecutionState* makeState(){
 //  GoFdwExecutionState *s = (GoFdwExecutionState *) malloc(sizeof(GoFdwExecutionState));
 //  return s;
 //}
 //
-// static inline void callSaveTuple(GoFdwFunctions h, Datum *data, bool *isnull, ScanState *state) {
-//   (*(h.saveTuple))(data, isnull, state);
-// }
 //static inline DefElem* cellGetDef(ListCell *n) { return (DefElem*)n->data.ptr_value; }
 //
 //static inline void freeState(GoFdwExecutionState * s){ if (s) free(s); }
+//static void eReport(const char *msg) {
+//  ereport(ERROR, (errcode(ERRCODE_FDW_ERROR), errmsg("%s", msg)));
+//}
+//
+//static Datum cStringGetDatum(const char *str) {
+//  PG_RETURN_TEXT_P(CStringGetTextDatum(str));
+//}
+//
+//static Datum jsonGetDatum(const char *str) {
+//  PG_RETURN_JSONB(DirectFunctionCall1(jsonb_in, CStringGetDatum(str)));
+//}
+//
+//static Datum numericGetDatum(int64_t num) {
+//  PG_RETURN_INT64(Int64GetDatum(num));
+//}
+//
+//static void saveTuple(Datum *data, bool *isnull, ScanState *state) {
+//  HeapTuple tuple = heap_form_tuple(state->ss_currentRelation->rd_att, data, isnull);
+//  ExecStoreTuple(tuple, state->ss_ScanTupleSlot, InvalidBuffer, false);
+//}
 import "C"
 
 import (
@@ -143,7 +78,7 @@ type Explainer struct {
 
 // Property adds a key-value property to results of EXPLAIN query.
 func (e Explainer) Property(k, v string) {
-	explainPropertyText(C.CString(k), C.CString(v), e.es)
+	C.ExplainPropertyText(C.CString(k), C.CString(v), e.es)
 }
 
 // Options is a set of FDW options provided by user during table creation.
@@ -241,82 +176,8 @@ const (
 // FIXME: it would be better to link to pg executable properly
 
 var (
-	fmu                   sync.Mutex
-	explainPropertyText   func(qlabel, value *C.char, es *C.ExplainState)
-	createForeignscanPath func(root *C.PlannerInfo, rel *C.RelOptInfo, target *C.PathTarget,
-		rows C.double, startup_cost Cost, total_cost Cost, pathkeys *C.List,
-		required_outer C.Relids, fdw_outerpath *C.Path, fdw_private *C.List) *C.ForeignPath
-	addPath func(parent_rel *C.RelOptInfo, new_path *C.Path)
-
-	execClearTuple            func(slot *C.TupleTableSlot) *C.TupleTableSlot
-	tupleDescGetAttInMetadata func(tupdesc C.TupleDesc) *C.AttInMetadata
-	execStoreVirtualTuple     func(slot *C.TupleTableSlot) *C.TupleTableSlot
-	cstringGetDatum           func(str *C.char) C.Datum
-	jsonGetDatum              func(str *C.char) C.Datum
-	numericGetDatum           func(num C.int64_t) C.Datum
-	getForeignTable           func(relid C.Oid) *C.ForeignTable
-	getForeignServer          func(relid C.Oid) *C.ForeignServer
-	getForeignColumnOptions   func(relid C.Oid, attrnum C.AttrNumber) *C.List
-	defGetString              func(def *C.DefElem) *C.char
-	saveTuple                 func(data *C.Datum, isnull *C.bool, state *C.ScanState)
-	ereport                   func(*C.char)
+	fmu sync.Mutex
 )
-
-//export goMapFuncs
-func goMapFuncs(h C.GoFdwFunctions) {
-	// called the first time extension is loaded and sets all pointers to external C functions we use
-	fmu.Lock()
-	defer fmu.Unlock()
-
-	explainPropertyText = func(qlabel, value *C.char, es *C.ExplainState) {
-		C.callExplainPropertyText(h, qlabel, value, es)
-	}
-	createForeignscanPath = func(root *C.PlannerInfo, rel *C.RelOptInfo, target *C.PathTarget,
-		rows C.double, startup_cost, total_cost Cost, pathkeys *C.List,
-		required_outer C.Relids, fdw_outerpath *C.Path, fdw_private *C.List) *C.ForeignPath {
-		return C.call_create_foreignscan_path(h,
-			root, rel, target, C.double(rows),
-			C.Cost(startup_cost), C.Cost(total_cost),
-			pathkeys, required_outer, fdw_outerpath, fdw_private,
-		)
-	}
-	addPath = func(parent_rel *C.RelOptInfo, new_path *C.Path) {
-		C.call_add_path(h, parent_rel, new_path)
-	}
-	execClearTuple = func(slot *C.TupleTableSlot) *C.TupleTableSlot {
-		return C.callExecClearTuple(h, slot)
-	}
-	getForeignTable = func(relid C.Oid) *C.ForeignTable {
-		return C.callGetForeignTable(h, relid)
-	}
-	getForeignServer = func(relid C.Oid) *C.ForeignServer {
-		return C.callGetForeignServer(h, relid)
-	}
-	getForeignColumnOptions = func(relid C.Oid, attrnum C.AttrNumber) *C.List {
-		return C.callGetForeignColumnOptions(h, relid, attrnum)
-	}
-
-	ereport = func(msg *C.char) {
-		C.callEReport(h, msg)
-	}
-
-	cstringGetDatum = func(str *C.char) C.Datum {
-		return C.callCStringGetDatum(h, str)
-	}
-	jsonGetDatum = func(str *C.char) C.Datum {
-		return C.callJSONGetDatum(h, str)
-	}
-	numericGetDatum = func(num C.int64_t) C.Datum {
-		return C.callNumericGetDatum(h, num)
-	}
-	defGetString = func(def *C.DefElem) *C.char {
-		return C.callDefGetString(h, def)
-	}
-
-	saveTuple = func(data *C.Datum, isnull *C.bool, state *C.ScanState) {
-		C.callSaveTuple(h, data, isnull, state)
-	}
-}
 
 //export goAnalyzeForeignTable
 func goAnalyzeForeignTable(relation C.Relation, fnc *C.AcquireSampleRowsFunc, totalpages *C.BlockNumber) C.bool {
@@ -363,14 +224,14 @@ func goGetForeignPaths(root *C.PlannerInfo, baserel *C.RelOptInfo, foreigntablei
 		errReport(err)
 		return
 	}
-	addPath(baserel,
-		(*C.Path)(unsafe.Pointer(createForeignscanPath(
+	C.add_path(baserel,
+		(*C.Path)(unsafe.Pointer(C.create_foreignscan_path(
 			root,
 			baserel,
 			baserel.reltarget,
 			baserel.rows,
-			st.StartCost,
-			st.TotalCost,
+			C.Cost(st.StartCost),
+			C.Cost(st.TotalCost),
 			nil, // no pathkeys
 			nil, // no outer rel either
 			nil, // no extra plan
@@ -412,7 +273,7 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 	s := getState(node.fdw_state)
 
 	slot := node.ss.ss_ScanTupleSlot
-	execClearTuple(slot)
+	C.ExecClearTuple(slot)
 
 	row, err := s.Iter.Next()
 	if err != nil {
@@ -441,7 +302,7 @@ func goIterateForeignScan(node *C.ForeignScanState) *C.TupleTableSlot {
 		data[i] = datum
 	}
 
-	saveTuple(&data[0], &isNull[0], &node.ss)
+	C.saveTuple(&data[0], &isNull[0], &node.ss)
 	return slot
 }
 
@@ -505,8 +366,8 @@ func getState(p unsafe.Pointer) *state {
 }
 
 func getFTableOptions(id Oid) *Options {
-	f := getForeignTable(C.Oid(id))
-	s := getForeignServer(C.Oid(f.serverid))
+	f := C.GetForeignTable(C.Oid(id))
+	s := C.GetForeignServer(C.Oid(f.serverid))
 	return &Options{
 		TableOptions:  getOptions(f.options),
 		ServerOptions: getOptions(s.options),
@@ -521,7 +382,7 @@ func getOptions(opts *C.List) map[string]string {
 	for it := opts.head; it != nil; it = it.next {
 		el := C.cellGetDef(it)
 		name := C.GoString(el.defname)
-		val := C.GoString(defGetString(el))
+		val := C.GoString(C.defGetString(el))
 		m[name] = val
 	}
 	return m
@@ -573,13 +434,13 @@ func buildAttr(attr *C.FormData_pg_attribute) (out Attr) {
 	out.Name = goString(unsafe.Pointer(&attr.attname.data[0]), nameLen)
 	out.Type = Oid(attr.atttypid)
 	out.NotNull = goBool(attr.attnotnull)
-	out.Options = getOptions(getForeignColumnOptions(attr.attrelid, attr.attnum))
+	out.Options = getOptions(C.GetForeignColumnOptions(attr.attrelid, attr.attnum))
 
 	return
 }
 
 func errReport(err error) {
-	ereport(C.CString(err.Error()))
+	C.eReport(C.CString(err.Error()))
 }
 
 func valToDatum(v interface{}) (C.Datum, error) {
@@ -588,20 +449,20 @@ func valToDatum(v interface{}) (C.Datum, error) {
 	switch reflect.TypeOf(v).Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		val := reflect.ValueOf(v).Int()
-		return numericGetDatum(C.int64_t(val)), nil
+		return C.numericGetDatum(C.int64_t(val)), nil
 	case reflect.Map:
 		bytes, err := json.Marshal(v)
 		if err != nil {
 			return C.Datum(0), errors.Wrapf(err, "couldn't marshall %v", v)
 		}
 		value := C.CString(string(bytes))
-		return jsonGetDatum(value), nil
+		return C.jsonGetDatum(value), nil
 	case reflect.String:
 		value := C.CString(fmt.Sprintf("%s", v))
-		return cstringGetDatum(value), nil
+		return C.cStringGetDatum(value), nil
 	default:
 		value := C.CString(fmt.Sprintf("%v", v))
-		return cstringGetDatum(value), nil
+		return C.cStringGetDatum(value), nil
 	}
 
 }

@@ -12,6 +12,7 @@ go_library(
     ],
     cgo = True,
     copts = ["-Iinclude/postgresql/server -Iinclude/postgresql/internal"],  # keep
+    clinkopts = ["-Wl,-unresolved-symbols=ignore-all"], # keep
     importpath = "github.com/liztio/k8s-fdw/lib/fdw",
     visibility = ["//visibility:private"],
     deps = [

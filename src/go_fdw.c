@@ -9,12 +9,10 @@
  */
 
 #include "postgres.h"
-#include "utils/elog.h"
-#include "utils/builtins.h"
-#include "utils/jsonb.h"
-#include "fmgr.h"
+#include "optimizer/restrictinfo.h"
+#include "optimizer/planmain.h"
+#include "utils/palloc.h"
 
-#include "commands/defrem.h"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -42,17 +40,9 @@ static ForeignScan *goGetForeignPlan(PlannerInfo *root,
                                         Plan *outer_plan);
 //static TupleTableSlot *goIterateForeignScan(ForeignScanState *node);
 
-static Datum goCStringGetDatum(const char *str);
-static Datum goJSONGetDatum(const char *str);
-static Datum goNumericGetDatum(int64_t num);
-static void saveTuple(Datum *data, bool *isnull, ScanState *state);
-static void goEReport(const char *msg);
-
 Datum
 go_fdw_handler(PG_FUNCTION_ARGS)
 {
-  GoFdwFunctions h;
-
   FdwRoutine *fdwroutine = makeNode(FdwRoutine);
   fdwroutine->GetForeignRelSize = goGetForeignRelSize;
   fdwroutine->GetForeignPaths = goGetForeignPaths;
@@ -63,21 +53,6 @@ go_fdw_handler(PG_FUNCTION_ARGS)
   fdwroutine->ReScanForeignScan = goReScanForeignScan;
   fdwroutine->EndForeignScan = goEndForeignScan;
   fdwroutine->AnalyzeForeignTable = goAnalyzeForeignTable;
-
-  h.ExplainPropertyText = &ExplainPropertyText;
-  h.create_foreignscan_path = &create_foreignscan_path;
-  h.add_path = &add_path;
-  h.ExecClearTuple = &ExecClearTuple;
-  h.saveTuple = &saveTuple;
-  h.GetForeignTable = &GetForeignTable;
-  h.GetForeignServer = &GetForeignServer;
-  h.GetForeignColumnOptions = &GetForeignColumnOptions;
-  h.CStringGetDatum = &goCStringGetDatum;
-  h.JSONGetDatum = &goJSONGetDatum;
-  h.NumericGetDatum = &goNumericGetDatum;
-  h.defGetString = &defGetString;
-  h.EReport = &goEReport;
-  goMapFuncs(h);
 
   PG_RETURN_POINTER(fdwroutine);
 }
@@ -113,23 +88,4 @@ goGetForeignPlan(PlannerInfo *root,
                           outer_plan);
 }
 
-static void goEReport(const char *msg) {
-  ereport(ERROR, (errcode(ERRCODE_FDW_ERROR), errmsg("%s", msg)));
-}
 
-static Datum goCStringGetDatum(const char *str) {
-  PG_RETURN_TEXT_P(CStringGetTextDatum(str));
-}
-
-static Datum goJSONGetDatum(const char *str) {
-  PG_RETURN_JSONB(DirectFunctionCall1(jsonb_in, CStringGetDatum(str)));
-}
-
-static Datum goNumericGetDatum(int64_t num) {
-  PG_RETURN_INT64(Int64GetDatum(num));
-}
-
-static void saveTuple(Datum *data, bool *isnull, ScanState *state) {
-  HeapTuple tuple = heap_form_tuple(state->ss_currentRelation->rd_att, data, isnull);
-  ExecStoreTuple(tuple, state->ss_ScanTupleSlot, InvalidBuffer, false);
-}
